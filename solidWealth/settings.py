@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-2!tc=s!5ts^-$%2xpo^n--s&mqs4+(-l6ee#zcs1v3rgh#+yg!
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['solidwealthindia.com', 'www.solidwealthindia.com', "127.0.0.1", "localhost"]
 
 
 # Application definition
@@ -128,6 +128,17 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
+    'http://solidwealthindia.com',
+    'https://solidwealthindia.com',
+    'http://www.solidwealthindia.com',
+    'https://www.solidwealthindia.com',
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://solidwealthindia.com',
+    'https://solidwealthindia.com',
+    'http://www.solidwealthindia.com',
+    'https://www.solidwealthindia.com',
 ]
 
 # Cron jobs (use django-crontab). This will run `python manage.py fetch_nav` daily at 06:00 server time.

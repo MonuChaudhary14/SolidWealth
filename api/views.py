@@ -4,6 +4,7 @@ from django.db import transaction
 
 import requests
 from datetime import datetime
+from collections import OrderedDict
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -30,58 +31,79 @@ def try_parse_date(s):
 	return None
 
 
+def is_company_heading(line):
+	line = line.strip()
+	return bool(line) and 'mutual fund' in line.lower() and ';' not in line
+
+
 def parse_nav_lines(text):
 	lines = text.splitlines()
 	entries = []
+	current_company = None
 	for line in lines:
-		if not line.strip():
+		line = line.strip()
+		if not line:
 			continue
-		# Skip header if present
-		if line.lower().startswith('scheme code') or line.lower().startswith('schemecode'):
+		if is_company_heading(line):
+			current_company = line
 			continue
-		parts = [p.strip() for p in line.split('|')]
-		# Try to map common positions
-		# Common expected: scheme_code | isin1 | isin2 | scheme_name | nav | repurchase | sale | date
-		nav_date = None
-		if parts:
-			# attempt to detect date from last token
-			nav_date = try_parse_date(parts[-1])
-		scheme_code = parts[0] if len(parts) > 0 else ''
-		isin = parts[1] if len(parts) > 1 else None
-		# guess scheme_name and nav position
-		scheme_name = None
-		nav_value = None
-		repurchase = None
-		sale = None
-		if nav_date and len(parts) >= 5:
-			# assume scheme_name is somewhere before nav, pick the token at -4
-			scheme_name = parts[-4] if len(parts) >= 4 else parts[2] if len(parts) > 2 else ''
-			nav_value = parts[-3]
-			repurchase = parts[-2] if len(parts) >= 2 else None
-		else:
-			# fallback: assign last known tokens
-			if len(parts) >= 4:
-				scheme_name = parts[2]
-				nav_value = parts[3]
-		# try convert nav to decimal-like string
-		try:
-			nav_val = None
-			if nav_value:
-				nav_val = nav_value.replace(',', '')
-		except Exception:
-			nav_val = None
+		if line.lower().startswith('scheme code'):
+			continue
+		if ';' not in line:
+			continue
+		parts = [p.strip() for p in line.split(';')]
+		if len(parts) < 6:
+			continue
+		nav_date = try_parse_date(parts[-1])
+		if nav_date is None:
+			continue
+		scheme_code = parts[0]
+		isin_div_payout = parts[1] if len(parts) > 1 else None
+		isin_div_reinvestment = parts[2] if len(parts) > 2 else None
+		scheme_name = parts[3] if len(parts) > 3 else ''
+		nav_value = parts[4].replace(',', '') if len(parts) > 4 and parts[4] else None
 
 		entries.append({
+			'company_name': current_company or '',
 			'scheme_code': scheme_code,
-			'isin': isin,
+			'isin_div_payout_growth': isin_div_payout,
+			'isin_div_reinvestment': isin_div_reinvestment,
 			'scheme_name': scheme_name or '',
-			'nav': nav_val,
-			'repurchase_price': repurchase,
-			'sale_price': sale,
+			'nav': nav_value,
 			'nav_date': nav_date,
 			'raw_line': line,
 		})
 	return entries
+
+
+def summarize_company_nav_entries(entries):
+	company_order = OrderedDict()
+	for entry in entries:
+		company_name = entry.get('company_name') or 'Unknown'
+		company_order.setdefault(company_name, []).append(entry)
+
+	summary = []
+	for company_name, company_entries in company_order.items():
+		dated_entries = [item for item in company_entries if item.get('nav_date')]
+		if not dated_entries:
+			continue
+		latest_date = max(item['nav_date'] for item in dated_entries)
+		latest_entries = [item for item in dated_entries if item.get('nav_date') == latest_date]
+		selected_entry = latest_entries[0]
+		summary.append({
+			'company_name': company_name,
+			'nav_date': latest_date.isoformat(),
+			'nav': {
+				'scheme_code': selected_entry.get('scheme_code'),
+				'isin_div_payout_growth': selected_entry.get('isin_div_payout_growth'),
+				'isin_div_reinvestment': selected_entry.get('isin_div_reinvestment'),
+				'scheme_name': selected_entry.get('scheme_name'),
+				'net_asset_value': selected_entry.get('nav'),
+				'raw_line': selected_entry.get('raw_line'),
+			},
+		})
+
+	return summary
 
 
 def fetch_nav_text():
@@ -179,3 +201,24 @@ class NavListAPIView(APIView):
 		qs = qs.order_by('scheme_code')[:limit]
 		serializer = NavEntrySerializer(qs, many=True)
 		return Response(serializer.data)
+
+
+class CompanyNavSummaryAPIView(APIView):
+	"""Return one NAV row per company from the latest AMFI feed."""
+
+	def get(self, request):
+		try:
+			text = fetch_nav_text()
+			parsed = parse_nav_lines(text)
+		except Exception:
+			return Response({'error': 'could not fetch data'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+		summary = summarize_company_nav_entries(parsed)
+		company_name = request.GET.get('company_name')
+		if company_name:
+			summary = [item for item in summary if company_name.lower() in item['company_name'].lower()]
+
+		return Response({
+			'count': len(summary),
+			'results': summary,
+		})
