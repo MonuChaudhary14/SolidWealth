@@ -10,3 +10,6 @@ __pycache__/
 # Django static files
 static/
 media/
+
+.venv/
+staticfiles/
