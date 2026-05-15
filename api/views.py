@@ -4,7 +4,6 @@ from django.db import transaction
 
 import requests
 from datetime import datetime
-from collections import OrderedDict
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -77,30 +76,38 @@ def parse_nav_lines(text):
 
 
 def summarize_company_nav_entries(entries):
-	company_order = OrderedDict()
+	company_entries = {}
 	for entry in entries:
+		if 'regular' not in (entry.get('scheme_name') or '').lower():
+			continue
+		if not entry.get('nav_date'):
+			continue
 		company_name = entry.get('company_name') or 'Unknown'
-		company_order.setdefault(company_name, []).append(entry)
+		company_entries.setdefault(company_name, []).append(entry)
 
 	summary = []
-	for company_name, company_entries in company_order.items():
-		dated_entries = [item for item in company_entries if item.get('nav_date')]
-		if not dated_entries:
-			continue
-		latest_date = max(item['nav_date'] for item in dated_entries)
-		latest_entries = [item for item in dated_entries if item.get('nav_date') == latest_date]
-		selected_entry = latest_entries[0]
+	for company_name in sorted(company_entries.keys()):
+		items = company_entries[company_name]
+		latest_date = max(item['nav_date'] for item in items)
+		latest_items = [item for item in items if item.get('nav_date') == latest_date]
+		latest_items.sort(key=lambda item: (
+			item.get('scheme_name') or '',
+			item.get('scheme_code') or '',
+		))
 		summary.append({
 			'company_name': company_name,
 			'nav_date': latest_date.isoformat(),
-			'nav': {
-				'scheme_code': selected_entry.get('scheme_code'),
-				'isin_div_payout_growth': selected_entry.get('isin_div_payout_growth'),
-				'isin_div_reinvestment': selected_entry.get('isin_div_reinvestment'),
-				'scheme_name': selected_entry.get('scheme_name'),
-				'net_asset_value': selected_entry.get('nav'),
-				'raw_line': selected_entry.get('raw_line'),
-			},
+			'nav': [
+				{
+					'scheme_code': item.get('scheme_code'),
+					'isin_div_payout_growth': item.get('isin_div_payout_growth'),
+					'isin_div_reinvestment': item.get('isin_div_reinvestment'),
+					'scheme_name': item.get('scheme_name'),
+					'net_asset_value': item.get('nav'),
+					'raw_line': item.get('raw_line'),
+				}
+				for item in latest_items
+			],
 		})
 
 	return summary
@@ -204,7 +211,7 @@ class NavListAPIView(APIView):
 
 
 class CompanyNavSummaryAPIView(APIView):
-	"""Return one NAV row per company from the latest AMFI feed."""
+	"""Return regular NAV rows grouped by company from the latest AMFI feed."""
 
 	def get(self, request):
 		try:
