@@ -127,16 +127,15 @@ def fetch_nav_text():
 def fetch_and_store_nav(force=False):
 	text = fetch_nav_text()
 	parsed = parse_nav_lines(text)
-	# group by nav_date and store entries for each date
+	# Replace the previous NAV dataset only after a successful fetch and parse.
 	saved_dates = set()
 	with transaction.atomic():
+		NavEntry.objects.all().delete()
 		for item in parsed:
 			d = item.get('nav_date')
 			if d is None:
 				continue
 			saved_dates.add(d)
-			# remove existing for that scheme/date
-			NavEntry.objects.filter(scheme_code=item['scheme_code'], nav_date=d).delete()
 			try:
 				nav_val = None
 				if item['nav']:
