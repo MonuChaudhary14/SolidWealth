@@ -10,7 +10,8 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .models import NavEntry
-from .serializers import NavEntrySerializer
+from .serializers import EmailSubscriberSerializer, NavEntrySerializer
+from .services import upsert_subscriber
 
 
 AMFI_URL = 'https://portal.amfiindia.com/spages/NAVAll.txt'
@@ -229,3 +230,25 @@ class CompanyNavSummaryAPIView(APIView):
 			'count': len(summary),
 			'results': summary,
 		})
+
+
+class EmailSubscriberCreateAPIView(APIView):
+	"""Create or reactivate a subscriber for the daily email."""
+
+	def post(self, request):
+		serializer = EmailSubscriberSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+
+		subscriber, created = upsert_subscriber(
+			name=serializer.validated_data['name'],
+			email=serializer.validated_data['email'],
+		)
+		response_serializer = EmailSubscriberSerializer(subscriber)
+		return Response(
+			{
+				'message': 'Subscription saved',
+				'created': created,
+				'subscriber': response_serializer.data,
+			},
+			status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+		)

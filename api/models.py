@@ -19,4 +19,23 @@ class NavEntry(models.Model):
 	def __str__(self):
 		return f"{self.scheme_code} | {self.scheme_name} | {self.nav_date}"
 
+
+class EmailSubscriber(models.Model):
+	name = models.CharField(max_length=255)
+	email = models.EmailField(unique=True, db_index=True)
+	is_active = models.BooleanField(default=True)
+	created_at = models.DateTimeField(auto_now_add=True)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		ordering = ['name']
+
+	def save(self, *args, **kwargs):
+		self.name = (self.name or '').strip()
+		self.email = (self.email or '').strip().lower()
+		super().save(*args, **kwargs)
+
+	def __str__(self):
+		return f"{self.name} <{self.email}>"
+
 # Create your models here.
