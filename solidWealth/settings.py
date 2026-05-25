@@ -136,6 +136,7 @@ CORS_ALLOWED_ORIGINS = [
     'https://solidwealthindia.com',
     'http://www.solidwealthindia.com',
     'https://www.solidwealthindia.com',
+    'https://solid-wealth.vercel.app',
 ]
 
 CSRF_TRUSTED_ORIGINS = [
@@ -143,6 +144,7 @@ CSRF_TRUSTED_ORIGINS = [
     'https://solidwealthindia.com',
     'http://www.solidwealthindia.com',
     'https://www.solidwealthindia.com',
+    'https://solid-wealth.vercel.app',
 ]
 
 # Cron jobs (use django-crontab).
