@@ -2,19 +2,23 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.db import transaction
 
+import random
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.generics import ListAPIView, RetrieveAPIView
 
-from .models import NavEntry
-from .serializers import EmailSubscriberSerializer, NavEntrySerializer
-from .services import upsert_subscriber
+from .models import BlogPost, BlogRotationState, NavEntry
+from .serializers import BlogPostSerializer, ChatbotRequestSerializer, EmailSubscriberSerializer, NavEntrySerializer
+from .services import process_chatbot_message, upsert_subscriber
 
 
 AMFI_URL = 'https://portal.amfiindia.com/spages/NAVAll.txt'
+FEATURED_BLOG_COUNT = 4
+FEATURED_BLOG_ROTATION_INTERVAL = timedelta(days=7)
 
 
 def health_check(request):
@@ -112,6 +116,53 @@ def summarize_company_nav_entries(entries):
 		})
 
 	return summary
+
+
+def get_featured_blog_posts(now=None):
+	now = now or timezone.now()
+	current_blog_ids = list(BlogPost.objects.order_by('created_at', 'id').values_list('id', flat=True))
+	if not current_blog_ids:
+		return []
+
+	with transaction.atomic():
+		state, _ = BlogRotationState.objects.select_for_update().get_or_create(singleton_key='featured')
+		ordered_blog_ids = [blog_id for blog_id in state.ordered_blog_ids if blog_id in current_blog_ids]
+
+		if not ordered_blog_ids or state.cycle_started_at is None:
+			ordered_blog_ids = current_blog_ids[:]
+			random.shuffle(ordered_blog_ids)
+			state.ordered_blog_ids = ordered_blog_ids
+			state.cursor = 0
+			state.cycle_started_at = now
+			state.save(update_fields=['ordered_blog_ids', 'cursor', 'cycle_started_at', 'updated_at'])
+			return ordered_blog_ids[:FEATURED_BLOG_COUNT]
+
+		if state.cursor >= len(ordered_blog_ids):
+			ordered_blog_ids = current_blog_ids[:]
+			random.shuffle(ordered_blog_ids)
+			state.ordered_blog_ids = ordered_blog_ids
+			state.cursor = 0
+			state.cycle_started_at = now
+			state.save(update_fields=['ordered_blog_ids', 'cursor', 'cycle_started_at', 'updated_at'])
+			return ordered_blog_ids[:FEATURED_BLOG_COUNT]
+
+		if now - state.cycle_started_at >= FEATURED_BLOG_ROTATION_INTERVAL:
+			next_cursor = state.cursor + FEATURED_BLOG_COUNT
+			if next_cursor >= len(ordered_blog_ids):
+				ordered_blog_ids = current_blog_ids[:]
+				random.shuffle(ordered_blog_ids)
+				state.ordered_blog_ids = ordered_blog_ids
+				state.cursor = 0
+				state.cycle_started_at = now
+				state.save(update_fields=['ordered_blog_ids', 'cursor', 'cycle_started_at', 'updated_at'])
+				return ordered_blog_ids[:FEATURED_BLOG_COUNT]
+
+			state.ordered_blog_ids = ordered_blog_ids
+			state.cursor = next_cursor
+			state.cycle_started_at = now
+			state.save(update_fields=['ordered_blog_ids', 'cursor', 'cycle_started_at', 'updated_at'])
+
+		return ordered_blog_ids[state.cursor:state.cursor + FEATURED_BLOG_COUNT]
 
 
 def fetch_nav_text():
@@ -251,3 +302,44 @@ class EmailSubscriberCreateAPIView(APIView):
 			},
 			status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
 		)
+
+
+class BlogPostListAPIView(ListAPIView):
+	"""Return the blog section content for the website."""
+
+	serializer_class = BlogPostSerializer
+
+	def get(self, request, *args, **kwargs):
+		featured_blog_ids = get_featured_blog_posts()
+		if not featured_blog_ids:
+			return Response([])
+
+		blogs_by_id = {
+			blog.id: blog
+			for blog in BlogPost.objects.filter(id__in=featured_blog_ids)
+		}
+		ordered_blogs = [blogs_by_id[blog_id] for blog_id in featured_blog_ids if blog_id in blogs_by_id]
+		serializer = self.get_serializer(ordered_blogs, many=True)
+		return Response(serializer.data)
+
+
+class BlogPostDetailAPIView(RetrieveAPIView):
+	"""Return a single blog post."""
+
+	queryset = BlogPost.objects.all()
+	serializer_class = BlogPostSerializer
+
+
+class ChatbotAPIView(APIView):
+	"""Single endpoint chatbot for finance Q&A and calculator responses."""
+
+	def post(self, request):
+		serializer = ChatbotRequestSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+
+		result = process_chatbot_message(
+			message=serializer.validated_data['message'],
+			session_id=serializer.validated_data.get('session_id') or None,
+			language=serializer.validated_data.get('language') or None,
+		)
+		return Response(result, status=status.HTTP_200_OK)

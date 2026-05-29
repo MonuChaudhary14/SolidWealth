@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import EmailSubscriber, NavEntry
+from .models import BlogPost, EmailSubscriber, NavEntry
 
 
 @admin.register(NavEntry)
@@ -15,3 +15,10 @@ class EmailSubscriberAdmin(admin.ModelAdmin):
 	list_display = ('name', 'email', 'is_active', 'created_at')
 	search_fields = ('name', 'email')
 	list_filter = ('is_active', 'created_at')
+
+
+@admin.register(BlogPost)
+class BlogPostAdmin(admin.ModelAdmin):
+	list_display = ('heading', 'blog_type', 'created_at', 'updated_at')
+	search_fields = ('heading', 'small_content', 'full_content', 'blog_type')
+	list_filter = ('blog_type', 'created_at', 'updated_at')
