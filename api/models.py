@@ -38,4 +38,28 @@ class EmailSubscriber(models.Model):
 	def __str__(self):
 		return f"{self.name} <{self.email}>"
 
-# Create your models here.
+
+class BlogPost(models.Model):
+	heading = models.CharField(max_length=255, db_index=True)
+	small_content = models.CharField(max_length=500)
+	full_content = models.TextField()
+	blog_type = models.CharField(max_length=120, db_index=True)
+	created_at = models.DateTimeField(auto_now_add=True)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		ordering = ['-created_at', '-id']
+
+	def __str__(self):
+		return f"{self.heading} ({self.blog_type})"
+
+
+class BlogRotationState(models.Model):
+	singleton_key = models.CharField(max_length=32, unique=True, default='featured')
+	ordered_blog_ids = models.JSONField(default=list, blank=True)
+	cursor = models.PositiveIntegerField(default=0)
+	cycle_started_at = models.DateTimeField(null=True, blank=True)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	def __str__(self):
+		return f"Blog rotation state: {self.singleton_key}"
