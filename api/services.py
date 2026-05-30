@@ -1,5 +1,7 @@
 from django.core.mail import send_mail
 from django.utils import timezone
+import logging
+import os
 
 import math
 import os
@@ -42,6 +44,19 @@ def send_daily_subscription_emails():
 	sent_count = 0
 	failed_count = 0
 
+# Configure optional file logging for per-recipient results. Set EMAIL_LOG_FILE in .env
+logger = logging.getLogger('solidwealth.email_sender')
+log_path = os.getenv('EMAIL_LOG_FILE')
+if log_path and not logger.handlers:
+	try:
+		os.makedirs(os.path.dirname(log_path), exist_ok=True)
+	except Exception:
+		pass
+	fh = logging.FileHandler(log_path)
+	fh.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+	logger.addHandler(fh)
+	logger.setLevel(logging.INFO)
+
 	for subscriber in subscribers:
 		try:
 			send_mail(
@@ -52,8 +67,12 @@ def send_daily_subscription_emails():
 				fail_silently=False,
 			)
 			sent_count += 1
+			if logger:
+				logger.info('SENT %s', subscriber.email)
 		except Exception:
 			failed_count += 1
+			if logger:
+				logger.exception('FAILED %s', subscriber.email)
 
 	return {
 		'total': subscribers.count(),
