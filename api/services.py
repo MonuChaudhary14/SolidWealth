@@ -43,19 +43,20 @@ def send_daily_subscription_emails():
 	subscribers = EmailSubscriber.objects.filter(is_active=True).order_by('name', 'email')
 	sent_count = 0
 	failed_count = 0
+	
+	# Configure file logging for per-recipient results
 
-# Configure optional file logging for per-recipient results. Set EMAIL_LOG_FILE in .env
-logger = logging.getLogger('solidwealth.email_sender')
-log_path = os.getenv('EMAIL_LOG_FILE')
-if log_path and not logger.handlers:
-	try:
-		os.makedirs(os.path.dirname(log_path), exist_ok=True)
-	except Exception:
-		pass
-	fh = logging.FileHandler(log_path)
-	fh.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
-	logger.addHandler(fh)
-	logger.setLevel(logging.INFO)
+	logger = logging.getLogger('solidwealth.email_sender')
+	log_path = os.getenv('EMAIL_LOG_FILE')
+	if log_path and not logger.handlers:
+		try:
+			os.makedirs(os.path.dirname(log_path), exist_ok=True)
+		except Exception:
+			pass
+		fh = logging.FileHandler(log_path)
+		fh.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+		logger.addHandler(fh)
+		logger.setLevel(logging.INFO)
 
 	for subscriber in subscribers:
 		try:
