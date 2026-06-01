@@ -10,9 +10,17 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.generics import ListAPIView, RetrieveAPIView
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 
 from .models import BlogPost, BlogRotationState, NavEntry
-from .serializers import BlogPostSerializer, ChatbotRequestSerializer, EmailSubscriberSerializer, NavEntrySerializer
+from .serializers import (
+	BlogPostSerializer,
+	ChatbotRequestSerializer,
+	ChatbotResponseSerializer,
+	CompanyNavSummarySerializer,
+	EmailSubscriberSerializer,
+	NavEntrySerializer,
+)
 from .services import process_chatbot_message, upsert_subscriber
 
 
@@ -216,6 +224,15 @@ class NavListAPIView(APIView):
 	- limit: integer limit
 	"""
 
+	@extend_schema(
+		parameters=[
+			OpenApiParameter('scheme_code', OpenApiTypes.STR, OpenApiParameter.QUERY, description='Exact scheme code'),
+			OpenApiParameter('q', OpenApiTypes.STR, OpenApiParameter.QUERY, description='Search text in scheme name'),
+			OpenApiParameter('date', OpenApiTypes.DATE, OpenApiParameter.QUERY, description='Filter date in YYYY-MM-DD format'),
+			OpenApiParameter('limit', OpenApiTypes.INT, OpenApiParameter.QUERY, description='Maximum rows to return'),
+		],
+		responses=NavEntrySerializer(many=True),
+	)
 	def get(self, request):
 		scheme_code = request.GET.get('scheme_code')
 		q = request.GET.get('q')
@@ -264,6 +281,12 @@ class NavListAPIView(APIView):
 class CompanyNavSummaryAPIView(APIView):
 	"""Return regular NAV rows grouped by company from the latest AMFI feed."""
 
+	@extend_schema(
+		parameters=[
+			OpenApiParameter('company_name', OpenApiTypes.STR, OpenApiParameter.QUERY, description='Filter by company name substring'),
+		],
+		responses=CompanyNavSummarySerializer(many=True),
+	)
 	def get(self, request):
 		try:
 			text = fetch_nav_text()
@@ -285,6 +308,7 @@ class CompanyNavSummaryAPIView(APIView):
 class EmailSubscriberCreateAPIView(APIView):
 	"""Create or reactivate a subscriber for the daily email."""
 
+	@extend_schema(request=EmailSubscriberSerializer, responses=EmailSubscriberSerializer)
 	def post(self, request):
 		serializer = EmailSubscriberSerializer(data=request.data)
 		serializer.is_valid(raise_exception=True)
@@ -334,6 +358,7 @@ class BlogPostDetailAPIView(RetrieveAPIView):
 class ChatbotAPIView(APIView):
 	"""Single endpoint chatbot for finance Q&A and calculator responses."""
 
+	@extend_schema(request=ChatbotRequestSerializer, responses=ChatbotResponseSerializer)
 	def post(self, request):
 		serializer = ChatbotRequestSerializer(data=request.data)
 		serializer.is_valid(raise_exception=True)

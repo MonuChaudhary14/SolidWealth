@@ -521,6 +521,58 @@ def _clarification_for_intent(intent):
 	return 'Please share your financial question with values and time period.'
 
 
+def _pretty_metric_label(key):
+	return key.replace('_', ' ').strip().title()
+
+
+def _format_chatbot_response(answer, assumptions=None, metrics=None, follow_up_question='', disclaimer=None):
+	assumptions = assumptions or {}
+	metrics = metrics or {}
+	lines = [f'**Answer:** {answer}']
+
+	if metrics:
+		lines.extend(['', '### Key points'])
+		if 'total_value' in metrics:
+			lines.append(f"- Total value: {metrics['total_value']}")
+		if 'invested_amount' in metrics:
+			lines.append(f"- Invested amount: {metrics['invested_amount']}")
+		if 'estimated_gain' in metrics:
+			lines.append(f"- Estimated gain: {metrics['estimated_gain']}")
+		if 'monthly_emi' in metrics:
+			lines.append(f"- Monthly EMI: {metrics['monthly_emi']}")
+		if 'remaining_corpus' in metrics:
+			lines.append(f"- Remaining corpus: {metrics['remaining_corpus']}")
+		if 'required_monthly_investment' in metrics:
+			lines.append(f"- Required monthly investment: {metrics['required_monthly_investment']}")
+		if 'retirement_corpus' in metrics:
+			lines.append(f"- Retirement corpus: {metrics['retirement_corpus']}")
+		if 'future_value' in metrics:
+			lines.append(f"- Inflation-adjusted future value: {metrics['future_value']}")
+		if 'cagr' in metrics:
+			lines.append(f"- CAGR: {metrics['cagr']}")
+		if 'sip_projected_value' in metrics:
+			lines.append(f"- SIP projected value: {metrics['sip_projected_value']}")
+		if 'fd_projected_value' in metrics:
+			lines.append(f"- FD projected value: {metrics['fd_projected_value']}")
+
+		lines.extend(['', '### Snapshot', '| Metric | Value |', '|---|---|'])
+		for key, value in metrics.items():
+			lines.append(f'| {_pretty_metric_label(key)} | {value} |')
+
+	if assumptions:
+		lines.extend(['', '### Assumptions'])
+		for key, value in assumptions.items():
+			lines.append(f'- {_pretty_metric_label(key)}: {value}')
+
+	if follow_up_question:
+		lines.extend(['', '### Next step', f'- {follow_up_question}'])
+
+	if disclaimer:
+		lines.extend(['', f'_{disclaimer}_'])
+
+	return '\n'.join(lines)
+
+
 def _build_calculator_response(intent, inputs):
 	if intent == 'sip':
 		required = ['monthly_investment', 'annual_rate', 'years']
@@ -709,7 +761,9 @@ def _build_system_prompt(language):
 		'You are a financial assistant with advisor tone. '
 		'Be concise and practical, avoid guarantees, and do not provide unsafe promises. '
 		f'Respond in {lang}. '
-		'If the user asks for recommendations, explain assumptions briefly and ask one relevant follow-up question.'
+		'Use markdown with short bullet points. '
+		'When numbers are involved, include a small markdown table for the key values. '
+		'Only ask a follow-up question when more information is actually needed or the user explicitly asks for it.'
 	)
 
 
@@ -811,7 +865,7 @@ def process_chatbot_message(message, session_id=None, language=None):
 		explanation_short = 'XIRR needs date-wise cashflows with positive and negative values.'
 		assumptions = {}
 		metrics = {}
-		follow_up = 'Would you like me to provide a sample XIRR input template with your actual numbers?'
+		follow_up = 'Would you like a sample XIRR input template with your actual numbers?'
 	elif calculator_response is None and intent in CALCULATOR_INTENTS:
 		answer = _clarification_for_intent(intent)
 		explanation_short = 'I need a few mandatory inputs to calculate this accurately.'
@@ -819,17 +873,23 @@ def process_chatbot_message(message, session_id=None, language=None):
 		metrics = {}
 		follow_up = 'Share the missing values and I will compute instantly.'
 	elif calculator_response is not None:
-		answer = calculator_response['answer']
+		answer = _format_chatbot_response(
+			calculator_response['answer'],
+			assumptions=calculator_response.get('assumptions') or {},
+			metrics=calculator_response.get('metrics') or {},
+			disclaimer=disclaimer,
+		)
 		explanation_short = 'This estimate is based on the inputs detected from your message.'
 		assumptions = calculator_response.get('assumptions') or {}
 		metrics = calculator_response.get('metrics') or {}
-		follow_up = 'Do you want a sensitivity check with ±1% return rate?'
+		follow_up = ''
 	else:
 		answer, provider_used = _llm_fallback_answer(msg, lang, session['history'])
 		explanation_short = 'Answer generated with advisor-style guidance and your recent session context.'
 		assumptions = {}
 		metrics = {}
-		follow_up = 'Would you like me to convert this into a calculator-ready example with numbers?'
+		answer = _format_chatbot_response(answer, follow_up_question='', disclaimer=disclaimer)
+		follow_up = ''
 
 	session['history'].append({'role': 'user', 'content': msg})
 	session['history'].append({'role': 'assistant', 'content': answer})
