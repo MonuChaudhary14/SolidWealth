@@ -2,6 +2,7 @@ from django.core.mail import send_mail
 from django.utils import timezone
 import logging
 import os
+import html
 
 import math
 import os
@@ -15,13 +16,77 @@ from .models import EmailSubscriber
 
 
 DAILY_EMAIL_SUBJECT = 'Your daily Solid Wealth update'
-DAILY_EMAIL_BODY = (
-	"Hello {name},\n\n"
-	"This is your automated daily Solid Wealth email. We will replace this placeholder "
-	"with the final content you share later.\n\n"
-	"Regards,\n"
-	"Solid Wealth Team"
-)
+AMFI_URL = 'https://portal.amfiindia.com/spages/NAVAll.txt'
+
+
+def _try_parse_nav_date(date_text):
+	value = (date_text or '').strip()
+	for fmt in ('%d-%b-%Y', '%d/%m/%Y', '%d-%m-%Y', '%Y-%m-%d'):
+		try:
+			return timezone.datetime.strptime(value, fmt).date()
+		except Exception:
+			continue
+	return None
+
+
+def _fetch_amfi_nav_snapshot(limit=10):
+	resp = requests.get(AMFI_URL, timeout=30)
+	resp.raise_for_status()
+
+	company_rows = {}
+	current_company = None
+
+	for raw_line in resp.text.splitlines():
+		line = (raw_line or '').strip()
+		if not line:
+			continue
+
+		if 'mutual fund' in line.lower() and ';' not in line:
+			current_company = line
+			continue
+
+		if ';' not in line or line.lower().startswith('scheme code') or not current_company:
+			continue
+
+		parts = [part.strip() for part in line.split(';')]
+		if len(parts) < 6:
+			continue
+
+		scheme_name = parts[3] if len(parts) > 3 else ''
+		if 'regular' not in scheme_name.lower():
+			continue
+
+		nav_value = parts[4] if len(parts) > 4 else ''
+		nav_date = _try_parse_nav_date(parts[-1])
+		if not nav_date:
+			continue
+
+		candidate = {
+			'company_name': current_company,
+			'scheme_name': scheme_name,
+			'nav': nav_value,
+			'nav_date': nav_date,
+		}
+
+		existing = company_rows.get(current_company)
+		if existing is None or nav_date > existing['nav_date']:
+			company_rows[current_company] = candidate
+
+	rows = sorted(company_rows.values(), key=lambda row: row['company_name'])
+	return rows[:limit]
+
+
+def _format_nav_snapshot_lines(rows):
+	if not rows:
+		return ['NAV data could not be fetched right now.']
+
+	lines = [
+		'Company | Scheme | NAV',
+		'--- | --- | ---',
+	]
+	for row in rows:
+		lines.append(f"{row['company_name']} | {row['scheme_name']} | {row['nav']}")
+	return lines
 
 
 def upsert_subscriber(name, email, mobile_number=None):
@@ -36,14 +101,92 @@ def upsert_subscriber(name, email, mobile_number=None):
 	return subscriber, created
 
 
-def build_daily_email_body(subscriber):
-	return DAILY_EMAIL_BODY.format(name=subscriber.name or 'there')
+def build_daily_email_body(subscriber, nav_rows=None, report_date=None):
+	report_date = report_date or timezone.localdate()
+	name = subscriber.name or 'there'
+	nav_rows = nav_rows or []
+
+	lines = [
+		f'Hello {name},',
+		'',
+		f'Here is your Solid Wealth report dated {report_date.strftime("%d %b %Y")}.',
+		'',
+		'NAV Snapshot (Top 10 different companies):',
+	]
+	lines.extend(_format_nav_snapshot_lines(nav_rows))
+	lines.extend([
+		'',
+		'Visit SolidWealth: https://www.solidwealth.in/',
+		'',
+		'Regards,',
+		'Solid Wealth Team',
+	])
+
+	return '\n'.join(lines)
+
+
+def build_daily_email_html(subscriber, nav_rows=None, report_date=None):
+	report_date = report_date or timezone.localdate()
+	name = html.escape(subscriber.name or 'there')
+	date_text = report_date.strftime('%d %b %Y')
+	nav_rows = nav_rows or []
+
+	if nav_rows:
+		row_html = '\n'.join(
+			(
+				'<tr>'
+				f"<td style='padding:10px;border-bottom:1px solid #ffe4cc;color:#222;'>{html.escape(row['company_name'])}</td>"
+				f"<td style='padding:10px;border-bottom:1px solid #ffe4cc;color:#222;'>{html.escape(row['scheme_name'])}</td>"
+				f"<td style='padding:10px;border-bottom:1px solid #ffe4cc;color:#222;text-align:right;'>{html.escape(row['nav'])}</td>"
+				'</tr>'
+			)
+			for row in nav_rows
+		)
+	else:
+		row_html = (
+			"<tr><td colspan='3' style='padding:12px;color:#666;text-align:center;'>"
+			'NAV data could not be fetched right now.'
+			'</td></tr>'
+		)
+
+	return (
+		"<div style='margin:0;padding:0;background:#fff7ef;font-family:Arial,Helvetica,sans-serif;color:#222;width:100%;'>"
+		"<div style='width:100%;background:#ffffff;border:1px solid #ffd8b0;overflow:hidden;'>"
+		"<div style='background:linear-gradient(90deg,#ff7a00 0%,#ff9c40 100%);padding:18px 24px;width:100%;box-sizing:border-box;'>"
+		"<h2 style='margin:0;color:#ffffff;font-size:22px;line-height:1.2;'>Solid Wealth Daily Report</h2>"
+		'</div>'
+		"<div style='padding:24px;box-sizing:border-box;'>"
+		f"<p style='margin:0 0 8px 0;font-size:16px;'>Hello <strong>{name}</strong>,</p>"
+		f"<p style='margin:0 0 18px 0;color:#444;'>Here is your Solid Wealth report dated <strong>{date_text}</strong>.</p>"
+		"<h3 style='margin:0 0 10px 0;color:#ff7a00;font-size:18px;'>NAV Snapshot (Top 10 different companies)</h3>"
+		"<table style='width:100%;border-collapse:collapse;background:#fff;border:1px solid #ffd8b0;'>"
+		"<thead><tr style='background:#fff1e3;'>"
+		"<th style='padding:10px;text-align:left;color:#b45100;border-bottom:1px solid #ffd8b0;'>Company</th>"
+		"<th style='padding:10px;text-align:left;color:#b45100;border-bottom:1px solid #ffd8b0;'>Scheme</th>"
+		"<th style='padding:10px;text-align:right;color:#b45100;border-bottom:1px solid #ffd8b0;'>NAV</th>"
+		'</tr></thead>'
+		f'<tbody>{row_html}</tbody>'
+		'</table>'
+		"<p style='margin:16px 0 0 0;'>"
+		"<a href='https://www.solidwealth.in/' style='color:#ff7a00;font-weight:700;text-decoration:none;'>Visit SolidWealth</a>"
+		'</p>'
+		"<p style='margin:18px 0 0 0;color:#555;'>Regards,<br><strong>Solid Wealth Team</strong></p>"
+		'</div>'
+		'</div>'
+		'</div>'
+	)
 
 
 def send_daily_subscription_emails():
 	subscribers = EmailSubscriber.objects.filter(is_active=True).order_by('name', 'email')
 	sent_count = 0
 	failed_count = 0
+	report_date = timezone.localdate()
+
+	try:
+		nav_rows = _fetch_amfi_nav_snapshot(limit=10)
+	except Exception:
+		nav_rows = []
 	
 	# Configure file logging for per-recipient results
 
@@ -61,9 +204,12 @@ def send_daily_subscription_emails():
 
 	for subscriber in subscribers:
 		try:
+			plain_message = build_daily_email_body(subscriber, nav_rows=nav_rows, report_date=report_date)
+			html_message = build_daily_email_html(subscriber, nav_rows=nav_rows, report_date=report_date)
 			send_mail(
 				subject=DAILY_EMAIL_SUBJECT,
-				message=build_daily_email_body(subscriber),
+				message=plain_message,
+				html_message=html_message,
 				from_email=None,
 				recipient_list=[subscriber.email],
 				fail_silently=False,
