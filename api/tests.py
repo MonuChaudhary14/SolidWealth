@@ -137,7 +137,20 @@ class BlogApiTests(TestCase):
 class DailyEmailCommandTests(TestCase):
 
 	@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend', DEFAULT_FROM_EMAIL='noreply@test.local')
+	@patch('api.services.requests.get')
 	def test_sends_email_to_active_subscribers(self):
+		amfi_text = (
+			'Axis Mutual Fund\n'
+			'Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Net Asset Value;Date\n'
+			'117446;INF846K01CB0;-;Axis Banking & PSU Debt Fund - Regular Plan - Growth option;2743.7826;08-May-2026\n'
+			'SBI Mutual Fund\n'
+			'Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Net Asset Value;Date\n'
+			'102885;INF200K01239;-;SBI Bluechip Fund - Regular Plan - Growth;101.1234;08-May-2026\n'
+		)
+		mock_get.return_value.status_code = 200
+		mock_get.return_value.text = amfi_text
+		mock_get.return_value.raise_for_status.return_value = None
+
 		EmailSubscriber.objects.create(name='John', email='john@example.com')
 
 		call_command('send_daily_subscription_emails')
@@ -145,6 +158,21 @@ class DailyEmailCommandTests(TestCase):
 		self.assertEqual(len(mail.outbox), 1)
 		self.assertEqual(mail.outbox[0].subject, 'Your daily Solid Wealth update')
 		self.assertIn('John', mail.outbox[0].body)
+		self.assertIn('report dated', mail.outbox[0].body)
+		self.assertIn('NAV Snapshot', mail.outbox[0].body)
+		self.assertIn('Axis Mutual Fund', mail.outbox[0].body)
+		self.assertIn('SBI Mutual Fund', mail.outbox[0].body)
+		self.assertIn('Visit SolidWealth: https://www.solidwealth.in/', mail.outbox[0].body)
+		self.assertTrue(mail.outbox[0].alternatives)
+		html_content = mail.outbox[0].alternatives[0][0]
+		self.assertIn('Solid Wealth Daily Report', html_content)
+		self.assertIn('linear-gradient(90deg,#ff7a00 0%,#ff9c40 100%)', html_content)
+		self.assertIn('NAV Snapshot (Top 10 different companies)', html_content)
+		self.assertIn("href='https://www.solidwealth.in/'", html_content)
+		self.assertIn('>Visit SolidWealth<', html_content)
+		self.assertIn("width:100%;background:#ffffff;border:1px solid #ffd8b0;overflow:hidden;", html_content)
+		self.assertNotIn('Date</th>', html_content)
+		self.assertIn('Company | Scheme | NAV', mail.outbox[0].body)
 
 
 class ChatbotApiTests(TestCase):
