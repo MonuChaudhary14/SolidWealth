@@ -94,7 +94,7 @@ def upsert_subscriber(name, email, mobile_number=None):
 		email=(email or '').strip().lower(),
 		defaults={
 			'name': (name or '').strip(),
-			'mobile_number': (mobile_number or '').strip() or None,
+			'mobile_number': (re.sub(r"\s+", " ", (mobile_number or '')).strip() or None),
 			'is_active': True,
 		},
 	)

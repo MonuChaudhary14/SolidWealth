@@ -1,4 +1,17 @@
 from rest_framework import serializers
+import re
+
+
+def validate_mobile_number(value):
+    if value in (None, ''):
+        return value
+    v = re.sub(r"\s+", " ", value).strip()
+    if len(v) > 20:
+        raise serializers.ValidationError('Mobile number too long')
+    # Accept optional leading +, 1-3 country digits, optional single space, then digits and spaces
+    if not re.match(r'^\+?\d{1,3}\s?\d[\d\s]{4,}$', v):
+        raise serializers.ValidationError('Invalid mobile number format')
+    return v
 
 from .models import BlogPost, EmailSubscriber, NavEntry
 
@@ -19,6 +32,7 @@ class NavEntrySerializer(serializers.ModelSerializer):
 
 
 class EmailSubscriberSerializer(serializers.ModelSerializer):
+    mobile_number = serializers.CharField(required=False, allow_blank=True, max_length=20, validators=[validate_mobile_number])
     class Meta:
         model = EmailSubscriber
         fields = [
