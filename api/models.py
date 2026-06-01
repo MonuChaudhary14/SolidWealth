@@ -23,6 +23,7 @@ class NavEntry(models.Model):
 class EmailSubscriber(models.Model):
 	name = models.CharField(max_length=255)
 	email = models.EmailField(unique=True, db_index=True)
+	mobile_number = models.CharField(max_length=10, blank=True, null=True)
 	is_active = models.BooleanField(default=True)
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
@@ -33,6 +34,7 @@ class EmailSubscriber(models.Model):
 	def save(self, *args, **kwargs):
 		self.name = (self.name or '').strip()
 		self.email = (self.email or '').strip().lower()
+		self.mobile_number = (self.mobile_number or '').strip() or None
 		super().save(*args, **kwargs)
 
 	def __str__(self):

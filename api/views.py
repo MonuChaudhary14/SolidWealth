@@ -292,6 +292,7 @@ class EmailSubscriberCreateAPIView(APIView):
 		subscriber, created = upsert_subscriber(
 			name=serializer.validated_data['name'],
 			email=serializer.validated_data['email'],
+			mobile_number=serializer.validated_data.get('mobile_number'),
 		)
 		response_serializer = EmailSubscriberSerializer(subscriber)
 		return Response(
