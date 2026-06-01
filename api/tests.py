@@ -164,6 +164,9 @@ class ChatbotApiTests(TestCase):
 		self.assertIn('total_value', payload['metrics'])
 		self.assertEqual(payload['provider_used'], 'rule-engine')
 		self.assertEqual(payload['disclaimer'], 'The data is AI generated, check it before using it')
+		self.assertEqual(payload['follow_up_question'], '')
+		self.assertIn('### Key points', payload['answer'])
+		self.assertIn('| Metric | Value |', payload['answer'])
 
 	def test_emi_missing_inputs_returns_clarification(self):
 		response = self.client.post(

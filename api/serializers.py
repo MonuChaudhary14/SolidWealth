@@ -33,6 +33,35 @@ class EmailSubscriberSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'is_active', 'created_at', 'updated_at']
 
 
+class NavCompanySchemeSerializer(serializers.Serializer):
+    scheme_code = serializers.CharField()
+    isin_div_payout_growth = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    isin_div_reinvestment = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    scheme_name = serializers.CharField()
+    net_asset_value = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    raw_line = serializers.CharField()
+
+
+class CompanyNavSummarySerializer(serializers.Serializer):
+    company_name = serializers.CharField()
+    nav_date = serializers.DateField()
+    nav = NavCompanySchemeSerializer(many=True)
+
+
+class ChatbotResponseSerializer(serializers.Serializer):
+    session_id = serializers.CharField()
+    language_detected = serializers.CharField()
+    intent = serializers.CharField()
+    detected_inputs = serializers.DictField(child=serializers.JSONField())
+    assumptions = serializers.DictField(child=serializers.JSONField())
+    answer = serializers.CharField()
+    explanation_short = serializers.CharField()
+    follow_up_question = serializers.CharField(allow_blank=True, required=False)
+    metrics = serializers.DictField(child=serializers.JSONField())
+    disclaimer = serializers.CharField(allow_null=True, required=False)
+    provider_used = serializers.CharField()
+
+
 class BlogPostSerializer(serializers.ModelSerializer):
     class Meta:
         model = BlogPost
