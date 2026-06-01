@@ -24,11 +24,12 @@ DAILY_EMAIL_BODY = (
 )
 
 
-def upsert_subscriber(name, email):
+def upsert_subscriber(name, email, mobile_number=None):
 	subscriber, created = EmailSubscriber.objects.update_or_create(
 		email=(email or '').strip().lower(),
 		defaults={
 			'name': (name or '').strip(),
+			'mobile_number': (mobile_number or '').strip() or None,
 			'is_active': True,
 		},
 	)

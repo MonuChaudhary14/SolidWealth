@@ -25,6 +25,7 @@ class EmailSubscriberSerializer(serializers.ModelSerializer):
             'id',
             'name',
             'email',
+            'mobile_number',
             'is_active',
             'created_at',
             'updated_at',

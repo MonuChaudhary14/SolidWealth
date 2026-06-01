@@ -150,8 +150,8 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Cron jobs (use django-crontab).
 CRONJOBS = [
-    ('0 6 * * *', 'django.core.management.call_command', ['fetch_nav']),
-    ('0 7 * * *', 'django.core.management.call_command', ['send_daily_subscription_emails']),
+    ('30 0 * * *', 'django.core.management.call_command', ['fetch_nav']),
+    ('30 1 * * *', 'django.core.management.call_command', ['send_daily_subscription_emails']),
 ]
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'vitalup001@gmail.com')

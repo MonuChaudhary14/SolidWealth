@@ -90,8 +90,8 @@ Implemented behavior:
 
 ### 4.7 Scheduling
 Two automated cron jobs are configured:
-- `fetch_nav` at `06:00 UTC` daily.
-- `send_daily_subscription_emails` at `07:00 UTC` daily.
+- `fetch_nav` at `06:00 AM IST` daily.
+- `send_daily_subscription_emails` at `07:00 AM IST` daily.
 
 ## 5. Data Models
 
