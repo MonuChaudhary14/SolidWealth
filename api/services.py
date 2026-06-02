@@ -1,15 +1,14 @@
-from django.core.mail import send_mail
-from django.utils import timezone
 import logging
-import os
 import html
 from decimal import Decimal, InvalidOperation
-
-import math
 import os
 import re
 import uuid
 from datetime import timedelta
+
+from django.core.mail import send_mail
+from django.db import transaction
+from django.utils import timezone
 
 import requests
 import yfinance as yf
@@ -19,6 +18,7 @@ from .models import EmailSubscriber, MarketSnapshot
 
 DAILY_EMAIL_SUBJECT = 'Your daily Solid Wealth update'
 AMFI_URL = 'https://portal.amfiindia.com/spages/NAVAll.txt'
+logger = logging.getLogger(__name__)
 MARKET_TICKERS = {
 	'gold_price': 'GC=F',
 	'silver_price': 'SI=F',
@@ -118,20 +118,75 @@ def _fetch_latest_market_value(ticker_symbol):
 	return _to_decimal(close_values.iloc[-1])
 
 
+def _extract_latest_close_value(history, ticker_symbol):
+	if history is None or history.empty:
+		return None
+
+	try:
+		if getattr(history.columns, 'nlevels', 1) > 1:
+			ticker_history = history[ticker_symbol]
+			if ticker_history is None or ticker_history.empty or 'Close' not in ticker_history:
+				return None
+			close_values = ticker_history['Close'].dropna()
+		else:
+			if 'Close' not in history:
+				return None
+			close_values = history['Close'].dropna()
+	except Exception:
+		return None
+
+	if close_values.empty:
+		return None
+	return _to_decimal(close_values.iloc[-1])
+
+
 def fetch_market_snapshot_values():
-	return {
-		field_name: _fetch_latest_market_value(ticker_symbol)
-		for field_name, ticker_symbol in MARKET_TICKERS.items()
-	}
+	values = {field_name: None for field_name in MARKET_TICKERS}
+	ticker_symbols = list(MARKET_TICKERS.values())
+
+	try:
+		history = yf.download(
+			tickers=' '.join(ticker_symbols),
+			period='10d',
+			interval='1d',
+			group_by='ticker',
+			progress=False,
+			auto_adjust=False,
+			threads=False,
+		)
+	except Exception:
+		logger.exception('Failed to fetch batched market snapshot values')
+		history = None
+
+	if history is not None and not history.empty:
+		for field_name, ticker_symbol in MARKET_TICKERS.items():
+			values[field_name] = _extract_latest_close_value(history, ticker_symbol)
+
+	if any(value is not None for value in values.values()):
+		return values
+
+	for field_name, ticker_symbol in MARKET_TICKERS.items():
+		try:
+			values[field_name] = _fetch_latest_market_value(ticker_symbol)
+		except Exception:
+			logger.exception('Failed to fetch market snapshot value for %s', ticker_symbol)
+			values[field_name] = None
+	return values
 
 
 def upsert_market_snapshot(snapshot_date=None):
 	snapshot_date = snapshot_date or timezone.localdate()
 	values = fetch_market_snapshot_values()
-	return MarketSnapshot.objects.update_or_create(
-		snapshot_date=snapshot_date,
-		defaults=values,
-	)
+	if not any(value is not None for value in values.values()):
+		raise ValueError('No market snapshot values could be fetched')
+
+	with transaction.atomic():
+		MarketSnapshot.objects.exclude(snapshot_date=snapshot_date).delete()
+		snapshot, created = MarketSnapshot.objects.update_or_create(
+			snapshot_date=snapshot_date,
+			defaults=values,
+		)
+	return snapshot, created
 
 
 def upsert_subscriber(name, email, mobile_number=None):

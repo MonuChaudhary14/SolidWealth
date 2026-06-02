@@ -22,7 +22,7 @@ from .serializers import (
 	MarketSnapshotSerializer,
 	NavEntrySerializer,
 )
-from .services import process_chatbot_message, upsert_market_snapshot, upsert_subscriber
+from .services import process_chatbot_message, upsert_subscriber
 from .models import BlogPost, BlogRotationState, MarketSnapshot, NavEntry
 
 
@@ -330,10 +330,7 @@ class MarketSnapshotAPIView(APIView):
 
 		snapshot = MarketSnapshot.objects.order_by('-snapshot_date', '-created_at').first()
 		if snapshot is None:
-			try:
-				snapshot, _ = upsert_market_snapshot()
-			except Exception:
-				return Response({'error': 'could not fetch market data'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+			return Response({'error': 'snapshot not available'}, status=status.HTTP_404_NOT_FOUND)
 
 		return Response(MarketSnapshotSerializer(snapshot).data)
 
