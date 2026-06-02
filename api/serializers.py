@@ -14,6 +14,7 @@ def validate_mobile_number(value):
     return v
 
 from .models import BlogPost, EmailSubscriber, NavEntry
+from .models import BlogPost, EmailSubscriber, MarketSnapshot, NavEntry
 
 
 class NavEntrySerializer(serializers.ModelSerializer):
@@ -89,6 +90,24 @@ class BlogPostSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class MarketSnapshotSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MarketSnapshot
+        fields = [
+            'id',
+            'snapshot_date',
+            'gold_price',
+            'silver_price',
+            'crude_oil_price',
+            'bitcoin_price',
+            'nifty_50_value',
+            'sensex_value',
+            'usd_inr_rate',
+            'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']
 
 
 class ChatbotRequestSerializer(serializers.Serializer):

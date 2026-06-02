@@ -10,4 +10,5 @@ urlpatterns = [
     path('blogs/<int:pk>/', views.BlogPostDetailAPIView.as_view()),
     path('nav/', views.NavListAPIView.as_view()),
     path('nav/company-summary/', views.CompanyNavSummaryAPIView.as_view()),
+    path('market-snapshot/', views.MarketSnapshotAPIView.as_view()),
 ]

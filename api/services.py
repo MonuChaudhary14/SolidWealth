@@ -3,6 +3,7 @@ from django.utils import timezone
 import logging
 import os
 import html
+from decimal import Decimal, InvalidOperation
 
 import math
 import os
@@ -11,12 +12,22 @@ import uuid
 from datetime import timedelta
 
 import requests
+import yfinance as yf
 
-from .models import EmailSubscriber
+from .models import EmailSubscriber, MarketSnapshot
 
 
 DAILY_EMAIL_SUBJECT = 'Your daily Solid Wealth update'
 AMFI_URL = 'https://portal.amfiindia.com/spages/NAVAll.txt'
+MARKET_TICKERS = {
+	'gold_price': 'GC=F',
+	'silver_price': 'SI=F',
+	'crude_oil_price': 'CL=F',
+	'bitcoin_price': 'BTC-USD',
+	'nifty_50_value': '^NSEI',
+	'sensex_value': '^BSESN',
+	'usd_inr_rate': 'USDINR=X',
+}
 
 
 def _try_parse_nav_date(date_text):
@@ -87,6 +98,40 @@ def _format_nav_snapshot_lines(rows):
 	for row in rows:
 		lines.append(f"{row['company_name']} | {row['scheme_name']} | {row['nav']}")
 	return lines
+
+
+def _to_decimal(value):
+	try:
+		return Decimal(str(value)).quantize(Decimal('0.000001'))
+	except (InvalidOperation, TypeError, ValueError):
+		return None
+
+
+def _fetch_latest_market_value(ticker_symbol):
+	ticker = yf.Ticker(ticker_symbol)
+	history = ticker.history(period='10d', interval='1d')
+	if history is None or history.empty or 'Close' not in history:
+		return None
+	close_values = history['Close'].dropna()
+	if close_values.empty:
+		return None
+	return _to_decimal(close_values.iloc[-1])
+
+
+def fetch_market_snapshot_values():
+	return {
+		field_name: _fetch_latest_market_value(ticker_symbol)
+		for field_name, ticker_symbol in MARKET_TICKERS.items()
+	}
+
+
+def upsert_market_snapshot(snapshot_date=None):
+	snapshot_date = snapshot_date or timezone.localdate()
+	values = fetch_market_snapshot_values()
+	return MarketSnapshot.objects.update_or_create(
+		snapshot_date=snapshot_date,
+		defaults=values,
+	)
 
 
 def upsert_subscriber(name, email, mobile_number=None):

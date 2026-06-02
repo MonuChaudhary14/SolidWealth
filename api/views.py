@@ -19,9 +19,11 @@ from .serializers import (
 	ChatbotResponseSerializer,
 	CompanyNavSummarySerializer,
 	EmailSubscriberSerializer,
+	MarketSnapshotSerializer,
 	NavEntrySerializer,
 )
-from .services import process_chatbot_message, upsert_subscriber
+from .services import process_chatbot_message, upsert_market_snapshot, upsert_subscriber
+from .models import BlogPost, BlogRotationState, MarketSnapshot, NavEntry
 
 
 AMFI_URL = 'https://portal.amfiindia.com/spages/NAVAll.txt'
@@ -303,6 +305,37 @@ class CompanyNavSummaryAPIView(APIView):
 			'count': len(summary),
 			'results': summary,
 		})
+
+
+class MarketSnapshotAPIView(APIView):
+	"""Return the latest stored market snapshot or create one when missing."""
+
+	@extend_schema(
+		parameters=[
+			OpenApiParameter('date', OpenApiTypes.DATE, OpenApiParameter.QUERY, description='Snapshot date in YYYY-MM-DD format'),
+		],
+		responses=MarketSnapshotSerializer,
+	)
+	def get(self, request):
+		date_value = request.GET.get('date')
+		if date_value:
+			try:
+				snapshot_date = datetime.fromisoformat(date_value).date()
+			except Exception:
+				return Response({'error': 'invalid date'}, status=status.HTTP_400_BAD_REQUEST)
+			snapshot = MarketSnapshot.objects.filter(snapshot_date=snapshot_date).first()
+			if snapshot is None:
+				return Response({'error': 'snapshot not found'}, status=status.HTTP_404_NOT_FOUND)
+			return Response(MarketSnapshotSerializer(snapshot).data)
+
+		snapshot = MarketSnapshot.objects.order_by('-snapshot_date', '-created_at').first()
+		if snapshot is None:
+			try:
+				snapshot, _ = upsert_market_snapshot()
+			except Exception:
+				return Response({'error': 'could not fetch market data'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+		return Response(MarketSnapshotSerializer(snapshot).data)
 
 
 class EmailSubscriberCreateAPIView(APIView):
