@@ -10,7 +10,7 @@ from django.test import TestCase
 
 from django.utils import timezone
 
-from .models import BlogPost, BlogRotationState, EmailSubscriber
+from .models import BlogPost, BlogRotationState, EmailSubscriber, MarketSnapshot
 from .views import summarize_company_nav_entries
 
 class CompanyNavSummaryTests(TestCase):
@@ -236,3 +236,54 @@ class ChatbotApiTests(TestCase):
 		)
 		self.assertEqual(response2.status_code, 200)
 		self.assertEqual(response2.json()['session_id'], session_id)
+
+
+class MarketSnapshotTests(TestCase):
+	@patch('api.services.fetch_market_snapshot_values')
+	def test_update_market_snapshot_command_saves_values(self, mock_fetch_values):
+		mock_fetch_values.return_value = {
+			'gold_price': 3000.12,
+			'silver_price': 35.45,
+			'crude_oil_price': 72.89,
+			'bitcoin_price': 65000.55,
+			'nifty_50_value': 22500.75,
+			'sensex_value': 74000.25,
+			'usd_inr_rate': 83.12,
+		}
+
+		call_command('update_market_snapshot')
+
+		snapshot = MarketSnapshot.objects.get(snapshot_date=timezone.localdate())
+		self.assertEqual(snapshot.gold_price, 3000.12)
+		self.assertEqual(snapshot.silver_price, 35.45)
+		self.assertEqual(snapshot.usd_inr_rate, 83.12)
+
+	@patch('api.services.fetch_market_snapshot_values')
+	def test_market_snapshot_api_returns_latest_snapshot(self, mock_fetch_values):
+		mock_fetch_values.return_value = {
+			'gold_price': 3100.00,
+			'silver_price': 36.00,
+			'crude_oil_price': 73.10,
+			'bitcoin_price': 66000.00,
+			'nifty_50_value': 22600.00,
+			'sensex_value': 74100.00,
+			'usd_inr_rate': 83.50,
+		}
+
+		MarketSnapshot.objects.create(
+			snapshot_date=timezone.localdate(),
+			gold_price=2999.99,
+			silver_price=34.99,
+			crude_oil_price=72.00,
+			bitcoin_price=64000.00,
+			nifty_50_value=22400.00,
+			sensex_value=73900.00,
+			usd_inr_rate=83.00,
+		)
+
+		response = self.client.get('/api/market-snapshot/')
+
+		self.assertEqual(response.status_code, 200)
+		payload = response.json()
+		self.assertEqual(payload['gold_price'], '2999.990000')
+		self.assertEqual(payload['usd_inr_rate'], '83.000000')
