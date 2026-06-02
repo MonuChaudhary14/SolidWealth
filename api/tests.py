@@ -259,6 +259,33 @@ class MarketSnapshotTests(TestCase):
 		self.assertEqual(snapshot.usd_inr_rate, 83.12)
 
 	@patch('api.services.fetch_market_snapshot_values')
+	def test_update_market_snapshot_command_replaces_previous_day_snapshot(self, mock_fetch_values):
+		MarketSnapshot.objects.create(
+			snapshot_date=timezone.localdate() - timedelta(days=1),
+			gold_price=2800.00,
+			silver_price=30.00,
+			crude_oil_price=70.00,
+			bitcoin_price=60000.00,
+			nifty_50_value=22000.00,
+			sensex_value=73000.00,
+			usd_inr_rate=82.00,
+		)
+		mock_fetch_values.return_value = {
+			'gold_price': 3000.12,
+			'silver_price': 35.45,
+			'crude_oil_price': 72.89,
+			'bitcoin_price': 65000.55,
+			'nifty_50_value': 22500.75,
+			'sensex_value': 74000.25,
+			'usd_inr_rate': 83.12,
+		}
+
+		call_command('update_market_snapshot')
+
+		self.assertEqual(MarketSnapshot.objects.count(), 1)
+		self.assertTrue(MarketSnapshot.objects.filter(snapshot_date=timezone.localdate()).exists())
+
+	@patch('api.services.fetch_market_snapshot_values')
 	def test_market_snapshot_api_returns_latest_snapshot(self, mock_fetch_values):
 		mock_fetch_values.return_value = {
 			'gold_price': 3100.00,
@@ -287,3 +314,10 @@ class MarketSnapshotTests(TestCase):
 		payload = response.json()
 		self.assertEqual(payload['gold_price'], '2999.990000')
 		self.assertEqual(payload['usd_inr_rate'], '83.000000')
+
+	def test_market_snapshot_api_returns_404_when_snapshot_missing(self):
+		response = self.client.get('/api/market-snapshot/')
+
+		self.assertEqual(response.status_code, 404)
+		payload = response.json()
+		self.assertEqual(payload['error'], 'snapshot not available')
