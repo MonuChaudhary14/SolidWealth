@@ -162,15 +162,20 @@ def fetch_market_snapshot_values():
 		for field_name, ticker_symbol in MARKET_TICKERS.items():
 			values[field_name] = _extract_latest_close_value(history, ticker_symbol)
 
-	if any(value is not None for value in values.values()):
-		return values
+	if not any(value is not None for value in values.values()):
+		for field_name, ticker_symbol in MARKET_TICKERS.items():
+			try:
+				values[field_name] = _fetch_latest_market_value(ticker_symbol)
+			except Exception:
+				logger.exception('Failed to fetch market snapshot value for %s', ticker_symbol)
+				values[field_name] = None
+				
+	# Convert Troy Ounce prices to per-gram prices
+	troy_oz = Decimal('31.1034768')
+	for field in ['gold_price', 'silver_price']:
+		if values.get(field) is not None:
+			values[field] = (values[field] / troy_oz).quantize(Decimal('0.000001'))
 
-	for field_name, ticker_symbol in MARKET_TICKERS.items():
-		try:
-			values[field_name] = _fetch_latest_market_value(ticker_symbol)
-		except Exception:
-			logger.exception('Failed to fetch market snapshot value for %s', ticker_symbol)
-			values[field_name] = None
 	return values
 
 
@@ -741,30 +746,7 @@ def _extract_calculator_inputs(message, intent):
 	return inputs
 
 
-def _clarification_for_intent(intent):
-	if intent == 'sip':
-		return 'Please share monthly investment, expected annual return (%), time period (years), and timing (beginning/end of month).'
-	if intent == 'lumpsum':
-		return 'Please share lumpsum amount, expected annual return (%), and time period (years).'
-	if intent == 'emi':
-		return 'Please share loan amount, annual interest rate (%), tenure (years), and EMI type (reducing/flat).'
-	if intent == 'xirr':
-		return 'Please share cashflows with dates in this format: 2024-01-01:-100000, 2024-07-01:-20000, 2026-01-01:160000.'
-	if intent == 'step_up_sip':
-		return 'Please share monthly SIP, annual return (%), years, and annual step-up (%).'
-	if intent == 'swp':
-		return 'Please share initial corpus, monthly withdrawal, annual return (%), and years.'
-	if intent == 'goal_based':
-		return 'Please share target corpus, current savings, expected return (%), and target time (years).'
-	if intent == 'retirement':
-		return 'Please share current age, retirement age, current savings, monthly investment, and expected annual return (%).'
-	if intent == 'inflation':
-		return 'Please share current amount, inflation rate (%), years, and compounding preference (annual/monthly).'
-	if intent == 'cagr':
-		return 'Please share initial value, final value, and total years to compute CAGR.'
-	if intent == 'fd_vs':
-		return 'Please share monthly investment, expected SIP return (%), FD rate (%), and years for comparison.'
-	return 'Please share your financial question with values and time period.'
+
 
 
 def _pretty_metric_label(key):
@@ -1004,7 +986,10 @@ def _build_system_prompt(language):
 		'hinglish': 'Hinglish',
 	}.get(language, 'English')
 	return (
-		'You are a financial assistant with advisor tone. '
+		'You are an expert financial assistant and advisor. '
+		'Your goal is to answer questions about finance, investment, mutual funds, SIP, EMI, etc., in a clear and educational way. '
+		'If the user is asking to calculate something (like SIP, Lumpsum, or EMI) but has not provided all the necessary numbers, politely ask them to provide the missing values '
+		'(e.g., for SIP ask for monthly investment, expected return rate, and time period). '
 		'Be concise and practical, avoid guarantees, and do not provide unsafe promises. '
 		f'Respond in {lang}. '
 		'Use markdown with short bullet points. '
@@ -1106,19 +1091,7 @@ def process_chatbot_message(message, session_id=None, language=None):
 	disclaimer = FINANCIAL_DISCLAIMER if intent != 'general' else None
 	provider_used = 'rule-engine'
 
-	if intent == 'xirr':
-		answer = _clarification_for_intent('xirr')
-		explanation_short = 'XIRR needs date-wise cashflows with positive and negative values.'
-		assumptions = {}
-		metrics = {}
-		follow_up = 'Would you like a sample XIRR input template with your actual numbers?'
-	elif calculator_response is None and intent in CALCULATOR_INTENTS:
-		answer = _clarification_for_intent(intent)
-		explanation_short = 'I need a few mandatory inputs to calculate this accurately.'
-		assumptions = {}
-		metrics = {}
-		follow_up = 'Share the missing values and I will compute instantly.'
-	elif calculator_response is not None:
+	if calculator_response is not None:
 		answer = _format_chatbot_response(
 			calculator_response['answer'],
 			assumptions=calculator_response.get('assumptions') or {},
