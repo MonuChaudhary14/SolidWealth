@@ -3,6 +3,8 @@
 echo "Apply database migrations"
 python manage.py migrate
 
+python manage.py collectstatic --noinput
+
 echo "Setting up crontab"
 python manage.py crontab add
 
