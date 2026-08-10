@@ -85,11 +85,11 @@ WSGI_APPLICATION = 'solidWealth.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'solidwealth_db',
-        'USER': 'solid',
-        'PASSWORD': 'solid',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': os.getenv('DB_NAME', 'solidwealth_db'),
+        'USER': os.getenv('DB_USER', 'solid'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'solid'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
 
