@@ -34,6 +34,7 @@ ALLOWED_HOSTS = [
     "www.solidwealthindia.com",
     "localhost",
     "127.0.0.1",
+    "72.60.219.188",
 ]
 
 # Application definition
