@@ -62,6 +62,14 @@ class MutualFundDataUploadAdmin(admin.ModelAdmin):
         # Parse the excel file
         try:
             df = pd.read_excel(obj.file.path)
+            # Make sure we strip any invisible spaces from column names!
+            df.columns = df.columns.str.strip()
+            
+            if "Scheme Name" not in df.columns:
+                from django.contrib import messages
+                messages.error(request, f"Error: Could not find 'Scheme Name' column. Columns found were: {list(df.columns)}")
+                return
+                
         except Exception as e:
             from django.contrib import messages
 
