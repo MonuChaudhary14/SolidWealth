@@ -14,3 +14,4 @@ yfinance==0.2.54
 setuptools<81
 pandas>=2.0.0
 openpyxl>=3.1.0
+xlrd>=2.0.1
