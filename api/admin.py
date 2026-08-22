@@ -79,8 +79,18 @@ class MutualFundDataUploadAdmin(admin.ModelAdmin):
                 
             # Read the file again using the correct header row
             df = pd.read_excel(obj.file.path, header=header_row_index)
-            # Safely strip spaces from all column names
-            df.columns = [str(col).strip() for col in df.columns]
+            
+            # Robustly normalize column names:
+            # 1. Convert to string
+            # 2. Replace newlines with spaces (since Excel headers often use Alt+Enter)
+            # 3. Replace '[' with '(' and ']' with ')' just in case
+            # 4. Remove multiple consecutive spaces
+            def normalize_header(col):
+                c = str(col).replace('\n', ' ').replace('\r', ' ')
+                c = c.replace('[', '(').replace(']', ')')
+                return ' '.join(c.split())
+                
+            df.columns = [normalize_header(col) for col in df.columns]
             
         except Exception as e:
             from django.contrib import messages
