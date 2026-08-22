@@ -62,17 +62,28 @@ class MutualFundDataUploadAdmin(admin.ModelAdmin):
         # Parse the excel file
         try:
             df = pd.read_excel(obj.file.path)
-            # Make sure we strip any invisible spaces from column names!
-            df.columns = df.columns.str.strip()
+            # Read without header to search for the correct header row
+            df_temp = pd.read_excel(obj.file.path, header=None)
             
-            if "Scheme Name" not in df.columns:
+            header_row_index = None
+            for idx, row in df_temp.iterrows():
+                # Check if any cell in this row contains "Scheme Name" (ignoring spaces)
+                if any("Scheme Name" in str(cell).strip() for cell in row.values):
+                    header_row_index = idx
+                    break
+            
+            if header_row_index is None:
                 from django.contrib import messages
-                messages.error(request, f"Error: Could not find 'Scheme Name' column. Columns found were: {list(df.columns)}")
+                messages.error(request, f"Error: Could not find a row containing 'Scheme Name' anywhere in the Excel file.")
                 return
                 
+            # Read the file again using the correct header row
+            df = pd.read_excel(obj.file.path, header=header_row_index)
+            # Safely strip spaces from all column names
+            df.columns = [str(col).strip() for col in df.columns]
+            
         except Exception as e:
             from django.contrib import messages
-
             messages.error(request, f"Error reading Excel file: {e}")
             return
 
