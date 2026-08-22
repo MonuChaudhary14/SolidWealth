@@ -7,25 +7,55 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='NavEntry',
+            name="NavEntry",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('scheme_code', models.CharField(db_index=True, max_length=64)),
-                ('isin', models.CharField(blank=True, db_index=True, max_length=64, null=True)),
-                ('scheme_name', models.CharField(db_index=True, max_length=512)),
-                ('nav', models.DecimalField(decimal_places=6, max_digits=20, null=True)),
-                ('repurchase_price', models.DecimalField(blank=True, decimal_places=6, max_digits=20, null=True)),
-                ('sale_price', models.DecimalField(blank=True, decimal_places=6, max_digits=20, null=True)),
-                ('nav_date', models.DateField(db_index=True)),
-                ('raw_line', models.TextField(blank=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("scheme_code", models.CharField(db_index=True, max_length=64)),
+                (
+                    "isin",
+                    models.CharField(
+                        blank=True, db_index=True, max_length=64, null=True
+                    ),
+                ),
+                ("scheme_name", models.CharField(db_index=True, max_length=512)),
+                (
+                    "nav",
+                    models.DecimalField(decimal_places=6, max_digits=20, null=True),
+                ),
+                (
+                    "repurchase_price",
+                    models.DecimalField(
+                        blank=True, decimal_places=6, max_digits=20, null=True
+                    ),
+                ),
+                (
+                    "sale_price",
+                    models.DecimalField(
+                        blank=True, decimal_places=6, max_digits=20, null=True
+                    ),
+                ),
+                ("nav_date", models.DateField(db_index=True)),
+                ("raw_line", models.TextField(blank=True)),
             ],
             options={
-                'indexes': [models.Index(fields=['scheme_code', 'nav_date'], name='api_naventr_scheme__640c0a_idx')],
+                "indexes": [
+                    models.Index(
+                        fields=["scheme_code", "nav_date"],
+                        name="api_naventr_scheme__640c0a_idx",
+                    )
+                ],
             },
         ),
     ]

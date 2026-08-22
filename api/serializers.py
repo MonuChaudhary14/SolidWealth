@@ -1,59 +1,78 @@
-from rest_framework import serializers
 import re
+
+from rest_framework import serializers
 
 
 def validate_mobile_number(value):
-    if value in (None, ''):
+    if value in (None, ""):
         return value
     v = re.sub(r"\s+", " ", value).strip()
     if len(v) > 20:
-        raise serializers.ValidationError('Mobile number too long')
+        raise serializers.ValidationError("Mobile number too long")
     # Accept optional leading +, 1-3 country digits, optional single space, then digits and spaces
-    if not re.match(r'^\+?\d{1,3}\s?\d[\d\s]{4,}$', v):
-        raise serializers.ValidationError('Invalid mobile number format')
+    if not re.match(r"^\+?\d{1,3}\s?\d[\d\s]{4,}$", v):
+        raise serializers.ValidationError("Invalid mobile number format")
     return v
 
-from .models import BlogPost, EmailSubscriber, NavEntry
-from .models import BlogPost, EmailSubscriber, MarketSnapshot, NavEntry
+
+from .models import (
+    BlogPost,
+    EmailSubscriber,
+    MarketSnapshot,
+    MutualFundPerformance,
+    NavEntry,
+)
 
 
 class NavEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = NavEntry
         fields = [
-            'id',
-            'scheme_code',
-            'isin',
-            'scheme_name',
-            'nav',
-            'repurchase_price',
-            'sale_price',
-            'nav_date',
+            "id",
+            "scheme_code",
+            "isin",
+            "scheme_name",
+            "nav",
+            "repurchase_price",
+            "sale_price",
+            "nav_date",
         ]
 
 
 class EmailSubscriberSerializer(serializers.ModelSerializer):
-    mobile_number = serializers.CharField(required=False, allow_blank=True, max_length=20, validators=[validate_mobile_number])
+    mobile_number = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=20,
+        validators=[validate_mobile_number],
+    )
+
     class Meta:
         model = EmailSubscriber
         fields = [
-            'id',
-            'name',
-            'email',
-            'mobile_number',
-            'is_active',
-            'created_at',
-            'updated_at',
+            "id",
+            "name",
+            "email",
+            "mobile_number",
+            "is_active",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'is_active', 'created_at', 'updated_at']
+        read_only_fields = ["id", "is_active", "created_at", "updated_at"]
 
 
 class NavCompanySchemeSerializer(serializers.Serializer):
     scheme_code = serializers.CharField()
-    isin_div_payout_growth = serializers.CharField(allow_blank=True, allow_null=True, required=False)
-    isin_div_reinvestment = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    isin_div_payout_growth = serializers.CharField(
+        allow_blank=True, allow_null=True, required=False
+    )
+    isin_div_reinvestment = serializers.CharField(
+        allow_blank=True, allow_null=True, required=False
+    )
     scheme_name = serializers.CharField()
-    net_asset_value = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    net_asset_value = serializers.CharField(
+        allow_blank=True, allow_null=True, required=False
+    )
     raw_line = serializers.CharField()
 
 
@@ -81,36 +100,42 @@ class BlogPostSerializer(serializers.ModelSerializer):
     class Meta:
         model = BlogPost
         fields = [
-            'id',
-            'heading',
-            'small_content',
-            'full_content',
-            'blog_type',
-            'created_at',
-            'updated_at',
+            "id",
+            "heading",
+            "small_content",
+            "full_content",
+            "blog_type",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ["id", "created_at", "updated_at"]
 
 
 class MarketSnapshotSerializer(serializers.ModelSerializer):
     class Meta:
         model = MarketSnapshot
         fields = [
-            'id',
-            'snapshot_date',
-            'gold_price',
-            'silver_price',
-            'crude_oil_price',
-            'bitcoin_price',
-            'nifty_50_value',
-            'sensex_value',
-            'usd_inr_rate',
-            'created_at',
+            "id",
+            "snapshot_date",
+            "gold_price",
+            "silver_price",
+            "crude_oil_price",
+            "bitcoin_price",
+            "nifty_50_value",
+            "sensex_value",
+            "usd_inr_rate",
+            "created_at",
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ["id", "created_at"]
 
 
 class ChatbotRequestSerializer(serializers.Serializer):
     message = serializers.CharField()
     session_id = serializers.CharField(required=False, allow_blank=True)
     language = serializers.CharField(required=False, allow_blank=True)
+
+
+class MutualFundPerformanceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MutualFundPerformance
+        fields = "__all__"
