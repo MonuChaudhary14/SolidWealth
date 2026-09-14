@@ -76,15 +76,46 @@ def parse_nav_lines(text):
         if nav_date is None:
             continue
         scheme_code = parts[0]
-        isin_div_payout = parts[1] if len(parts) > 1 else None
-        isin_div_reinvestment = parts[2] if len(parts) > 2 else None
-        scheme_name = parts[3] if len(parts) > 3 else ""
-        nav_value = parts[4].replace(",", "") if len(parts) > 4 and parts[4] else None
+        isin_div_payout = parts[1] if len(parts) > 1 and parts[1] != "-" else None
+        isin_div_reinvestment = parts[2] if len(parts) > 2 and parts[2] != "-" else None
+
+        if len(parts) >= 8:
+            base_scheme_name = parts[3]
+            plan = parts[4]
+            option = parts[5]
+            components = [base_scheme_name]
+            if plan:
+                components.append(plan)
+            if option:
+                components.append(option)
+            scheme_name = " - ".join(components)
+            raw_nav = (
+                parts[6].replace(",", "")
+                if len(parts) > 6 and parts[6] and parts[6] != "-"
+                else None
+            )
+        else:
+            scheme_name = parts[3] if len(parts) > 3 else ""
+            raw_nav = (
+                parts[4].replace(",", "")
+                if len(parts) > 4 and parts[4] and parts[4] != "-"
+                else None
+            )
+
+        try:
+            if raw_nav is not None:
+                float(raw_nav)
+                nav_value = raw_nav
+            else:
+                nav_value = None
+        except ValueError:
+            nav_value = None
 
         entries.append(
             {
                 "company_name": current_company or "",
                 "scheme_code": scheme_code,
+                "isin": isin_div_payout or isin_div_reinvestment,
                 "isin_div_payout_growth": isin_div_payout,
                 "isin_div_reinvestment": isin_div_reinvestment,
                 "scheme_name": scheme_name or "",
