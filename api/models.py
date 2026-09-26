@@ -4,8 +4,15 @@ from django.db import models
 
 
 class NavEntry(models.Model):
+    company_name = models.CharField(max_length=255, blank=True, db_index=True)
     scheme_code = models.CharField(max_length=64, db_index=True)
     isin = models.CharField(max_length=64, blank=True, null=True, db_index=True)
+    isin_div_payout_growth = models.CharField(
+        max_length=64, blank=True, null=True, db_index=True
+    )
+    isin_div_reinvestment = models.CharField(
+        max_length=64, blank=True, null=True, db_index=True
+    )
     scheme_name = models.CharField(max_length=512, db_index=True)
     nav = models.DecimalField(max_digits=20, decimal_places=6, null=True)
     repurchase_price = models.DecimalField(
@@ -20,6 +27,7 @@ class NavEntry(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["scheme_code", "nav_date"]),
+            models.Index(fields=["company_name", "nav_date"]),
         ]
 
     def __str__(self):

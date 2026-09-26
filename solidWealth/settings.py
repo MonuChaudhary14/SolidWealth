@@ -27,13 +27,23 @@ load_dotenv(BASE_DIR / ".env")
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = [
-    "solidwealthindia.com",
-    "www.solidwealthindia.com",
-    "127.0.0.1",
-]
+env_hosts = os.getenv("ALLOWED_HOSTS", "")
+if env_hosts:
+    ALLOWED_HOSTS = [h.strip() for h in env_hosts.split(",") if h.strip()]
+else:
+    ALLOWED_HOSTS = [
+        "solidwealthindia.com",
+        "www.solidwealthindia.com",
+        "127.0.0.1",
+        "localhost",
+        "0.0.0.0",
+    ]
+for default_host in ["localhost", "127.0.0.1", "0.0.0.0"]:
+    if default_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(default_host)
+
 
 # Application definition
 
@@ -178,6 +188,23 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# Cache configuration
+redis_cache_url = os.getenv("REDIS_URL") or os.getenv("CELERY_BROKER_URL")
+if redis_cache_url:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": redis_cache_url,
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }
+
 
 # DRF Spectacular (OpenAPI) settings
 REST_FRAMEWORK = {

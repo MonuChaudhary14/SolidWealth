@@ -2,6 +2,7 @@ import random
 from datetime import datetime, timedelta
 
 import requests
+from django.core.cache import cache
 from django.db import transaction
 from django.http import JsonResponse
 from django.utils import timezone
@@ -265,30 +266,41 @@ def fetch_and_store_nav(force=False):
     parsed = parse_nav_lines(text)
     # Replace the previous NAV dataset only after a successful fetch and parse.
     saved_dates = set()
+    entries_to_create = []
+    for item in parsed:
+        d = item.get("nav_date")
+        if d is None:
+            continue
+        saved_dates.add(d)
+        nav_val = item.get("nav")
+        entries_to_create.append(
+            NavEntry(
+                company_name=item.get("company_name") or "",
+                scheme_code=item["scheme_code"],
+                isin=item.get("isin"),
+                isin_div_payout_growth=item.get("isin_div_payout_growth"),
+                isin_div_reinvestment=item.get("isin_div_reinvestment"),
+                scheme_name=item.get("scheme_name") or "",
+                nav=nav_val,
+                repurchase_price=item.get("repurchase_price"),
+                sale_price=item.get("sale_price"),
+                nav_date=d,
+                raw_line=item.get("raw_line") or "",
+            )
+        )
+
     with transaction.atomic():
         NavEntry.objects.all().delete()
-        for item in parsed:
-            d = item.get("nav_date")
-            if d is None:
-                continue
-            saved_dates.add(d)
-            try:
-                nav_val = None
-                if item["nav"]:
-                    nav_val = item["nav"]
-                NavEntry.objects.create(
-                    scheme_code=item["scheme_code"],
-                    isin=item.get("isin"),
-                    scheme_name=item.get("scheme_name") or "",
-                    nav=nav_val,
-                    repurchase_price=item.get("repurchase_price"),
-                    sale_price=item.get("sale_price"),
-                    nav_date=d,
-                    raw_line=item.get("raw_line") or "",
-                )
-            except Exception:
-                continue
+        NavEntry.objects.bulk_create(entries_to_create, batch_size=2000)
+
+    try:
+        summary = summarize_company_nav_entries(parsed)
+        cache.set("company_nav_summary_cache", summary, timeout=86400)
+    except Exception:
+        pass
+
     return list(saved_dates)
+
 
 
 class NavListAPIView(APIView):
@@ -386,6 +398,42 @@ class NavListAPIView(APIView):
         return Response(serializer.data)
 
 
+def get_company_nav_summary():
+    summary = cache.get("company_nav_summary_cache")
+    if summary is not None:
+        return summary
+
+    db_entries = NavEntry.objects.filter(scheme_name__icontains="regular")
+    if db_entries.exists():
+        entries = list(
+            db_entries.values(
+                "company_name",
+                "scheme_code",
+                "isin_div_payout_growth",
+                "isin_div_reinvestment",
+                "scheme_name",
+                "nav",
+                "nav_date",
+                "raw_line",
+            )
+        )
+        summary = summarize_company_nav_entries(entries)
+        cache.set("company_nav_summary_cache", summary, timeout=86400)
+        return summary
+
+    # Otherwise fetch from AMFI and store
+    fetch_and_store_nav()
+    summary = cache.get("company_nav_summary_cache")
+    if summary is not None:
+        return summary
+
+    text = fetch_nav_text()
+    parsed = parse_nav_lines(text)
+    summary = summarize_company_nav_entries(parsed)
+    cache.set("company_nav_summary_cache", summary, timeout=86400)
+    return summary
+
+
 class CompanyNavSummaryAPIView(APIView):
     """Return regular NAV rows grouped by company from the latest AMFI feed."""
 
@@ -402,15 +450,13 @@ class CompanyNavSummaryAPIView(APIView):
     )
     def get(self, request):
         try:
-            text = fetch_nav_text()
-            parsed = parse_nav_lines(text)
+            summary = get_company_nav_summary()
         except Exception:
             return Response(
                 {"error": "could not fetch data"},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        summary = summarize_company_nav_entries(parsed)
         company_name = request.GET.get("company_name")
         if company_name:
             summary = [
@@ -425,6 +471,7 @@ class CompanyNavSummaryAPIView(APIView):
                 "results": summary,
             }
         )
+
 
 
 class MarketSnapshotAPIView(APIView):

@@ -29,6 +29,7 @@ class NavEntrySerializer(serializers.ModelSerializer):
         model = NavEntry
         fields = [
             "id",
+            "company_name",
             "scheme_code",
             "isin",
             "scheme_name",
