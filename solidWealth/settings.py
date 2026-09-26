@@ -121,20 +121,21 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://solidwealthindia.com",
-    "https://solidwealthindia.com",
-    "http://www.solidwealthindia.com",
-    "https://www.solidwealthindia.com",
-    "https://solid-wealth.vercel.app",
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:3000,http://solidwealthindia.com,https://solidwealthindia.com,http://www.solidwealthindia.com,https://www.solidwealthindia.com,https://solid-wealth.vercel.app",
+    ).split(",")
+    if origin.strip()
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "http://solidwealthindia.com",
-    "https://solidwealthindia.com",
-    "http://www.solidwealthindia.com",
-    "https://www.solidwealthindia.com",
-    "https://solid-wealth.vercel.app",
+    origin.strip()
+    for origin in os.getenv(
+        "CSRF_TRUSTED_ORIGINS",
+        "http://solidwealthindia.com,https://solidwealthindia.com,http://www.solidwealthindia.com,https://www.solidwealthindia.com,https://solid-wealth.vercel.app",
+    ).split(",")
+    if origin.strip()
 ]
 
 
