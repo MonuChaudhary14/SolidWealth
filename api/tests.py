@@ -7,7 +7,13 @@ from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from .models import BlogPost, BlogRotationState, EmailSubscriber, MarketSnapshot
+from .models import (
+    BlogPost,
+    BlogRotationState,
+    EmailSubscriber,
+    MarketSnapshot,
+    MutualFundPerformance,
+)
 from .views import summarize_company_nav_entries
 
 
@@ -352,3 +358,34 @@ class MarketSnapshotTests(TestCase):
         self.assertEqual(response.status_code, 404)
         payload = response.json()
         self.assertEqual(payload["error"], "snapshot not available")
+
+
+class MutualFundPerformanceCategoriesApiTests(TestCase):
+    def test_returns_distinct_categories_and_periods(self):
+        MutualFundPerformance.objects.create(
+            category="Childrens Fund",
+            period="Greater than 1 Year",
+            scheme_name="Fund A",
+        )
+        MutualFundPerformance.objects.create(
+            category="Childrens Fund",
+            period="Less than 1 Year",
+            scheme_name="Fund B",
+        )
+        MutualFundPerformance.objects.create(
+            category="Large Cap Fund",
+            period="Greater than 1 Year",
+            scheme_name="Fund C",
+        )
+
+        response = self.client.get("/api/mutual-fund-performance/categories/")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 2)
+        self.assertEqual(data[0]["category"], "Childrens Fund")
+        self.assertEqual(
+            data[0]["periods"], ["Greater than 1 Year", "Less than 1 Year"]
+        )
+        self.assertEqual(data[1]["category"], "Large Cap Fund")
+        self.assertEqual(data[1]["periods"], ["Greater than 1 Year"])

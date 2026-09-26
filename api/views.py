@@ -26,6 +26,7 @@ from .serializers import (
     CompanyNavSummarySerializer,
     EmailSubscriberSerializer,
     MarketSnapshotSerializer,
+    MutualFundCategorySerializer,
     MutualFundPerformanceSerializer,
     NavEntrySerializer,
 )
@@ -619,3 +620,29 @@ class MutualFundPerformanceListAPIView(ListAPIView):
                 category=category, period=period
             )
         return MutualFundPerformance.objects.none()
+
+
+class MutualFundPerformanceCategoriesAPIView(APIView):
+    """Return available mutual fund categories and their associated periods."""
+
+    @extend_schema(
+        responses=MutualFundCategorySerializer(many=True),
+    )
+    def get(self, request):
+        pairs = (
+            MutualFundPerformance.objects.values("category", "period")
+            .distinct()
+            .order_by("category", "period")
+        )
+        category_map = {}
+        for pair in pairs:
+            cat = pair.get("category")
+            per = pair.get("period")
+            if cat and per:
+                category_map.setdefault(cat, []).append(per)
+
+        result = [
+            {"category": cat, "periods": periods}
+            for cat, periods in category_map.items()
+        ]
+        return Response(result, status=status.HTTP_200_OK)

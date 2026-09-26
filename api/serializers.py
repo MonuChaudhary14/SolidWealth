@@ -153,3 +153,8 @@ class MutualFundPerformanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = MutualFundPerformance
         fields = "__all__"
+
+
+class MutualFundCategorySerializer(serializers.Serializer):
+    category = serializers.CharField()
+    periods = serializers.ListField(child=serializers.CharField())

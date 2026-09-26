@@ -11,5 +11,9 @@ urlpatterns = [
     path("nav/", views.NavListAPIView.as_view()),
     path("nav/company-summary/", views.CompanyNavSummaryAPIView.as_view()),
     path("market-snapshot/", views.MarketSnapshotAPIView.as_view()),
+    path(
+        "mutual-fund-performance/categories/",
+        views.MutualFundPerformanceCategoriesAPIView.as_view(),
+    ),
     path("mutual-fund-performance/", views.MutualFundPerformanceListAPIView.as_view()),
 ]
