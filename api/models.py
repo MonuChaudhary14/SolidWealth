@@ -127,7 +127,6 @@ class MutualFundDataUpload(models.Model):
         blank=True,
         help_text="e.g. Equity: ELSS (leave blank to auto-detect from Excel)",
     )
-    period = models.CharField(max_length=100, blank=True, default="")
     file = models.FileField(upload_to="uploads/mutual_funds/")
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
@@ -138,7 +137,6 @@ class MutualFundDataUpload(models.Model):
 
 class MutualFundPerformance(models.Model):
     category = models.CharField(max_length=255, db_index=True)
-    period = models.CharField(max_length=100, blank=True, default="", db_index=True)
     scheme_name = models.CharField(max_length=512)
     nav = models.DecimalField(max_digits=20, decimal_places=6, null=True, blank=True)
     launch_date = models.DateField(null=True, blank=True)

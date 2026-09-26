@@ -55,6 +55,7 @@ class MarketSnapshotAdmin(admin.ModelAdmin):
 class MutualFundDataUploadAdmin(admin.ModelAdmin):
     list_display = ("category", "uploaded_at")
     list_filter = ("category",)
+    fields = ("category", "file")
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -245,7 +246,6 @@ class MutualFundDataUploadAdmin(admin.ModelAdmin):
             records.append(
                 MutualFundPerformance(
                     category=final_category,
-                    period=obj.period or "",
                     scheme_name=str(scheme_name).strip(),
                     nav=safe_decimal(get_value_by_aliases(r_dict, "NAV", "Net Asset Value")),
                     launch_date=parsed_date,
