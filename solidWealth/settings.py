@@ -22,22 +22,16 @@ load_dotenv(BASE_DIR / ".env")
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 
-DEBUG = False
+DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
 
-env_hosts = os.getenv("ALLOWED_HOSTS", "")
-if env_hosts:
-    ALLOWED_HOSTS = [h.strip() for h in env_hosts.split(",") if h.strip()]
-else:
-    ALLOWED_HOSTS = [
-        "solidwealthindia.com",
-        "www.solidwealthindia.com",
-        "127.0.0.1",
-        "localhost",
-        "0.0.0.0",
-    ]
-for default_host in ["localhost", "127.0.0.1", "0.0.0.0"]:
-    if default_host not in ALLOWED_HOSTS:
-        ALLOWED_HOSTS.append(default_host)
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.getenv(
+        "ALLOWED_HOSTS",
+        "solidwealthindia.com,www.solidwealthindia.com,127.0.0.1,localhost,0.0.0.0",
+    ).split(",")
+    if h.strip()
+]
 
 
 INSTALLED_APPS = [
