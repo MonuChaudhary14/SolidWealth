@@ -369,8 +369,8 @@ DEFAULT_SESSION_TTL_MINUTES = int(os.getenv("CHAT_SESSION_TTL_MINUTES", "15"))
 SESSION_MEMORY = {}
 
 DEFAULT_MODELS = {
-    "groq": os.getenv("GROQ_MODEL", "llama-3.1-70b-versatile"),
-    "gemini": os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+    "groq": os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
+    "gemini": os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
     "openai": os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
 }
 
