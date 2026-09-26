@@ -12,7 +12,6 @@ from .views import summarize_company_nav_entries
 
 
 class CompanyNavSummaryTests(TestCase):
-
     def test_groups_regular_schemes_by_company(self):
         entries = [
             {
@@ -62,7 +61,6 @@ class CompanyNavSummaryTests(TestCase):
 
 
 class SubscriberApiTests(TestCase):
-
     def test_creates_or_updates_subscriber(self):
         response = self.client.post(
             "/api/subscribers/",
@@ -101,7 +99,6 @@ class SubscriberApiTests(TestCase):
 
 
 class BlogApiTests(TestCase):
-
     def test_returns_four_featured_blogs(self):
         for index in range(1, 9):
             BlogPost.objects.create(
@@ -142,13 +139,12 @@ class BlogApiTests(TestCase):
 
 
 class DailyEmailCommandTests(TestCase):
-
     @override_settings(
         EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
         DEFAULT_FROM_EMAIL="noreply@test.local",
     )
     @patch("api.services.requests.get")
-    def test_sends_email_to_active_subscribers(self):
+    def test_sends_email_to_active_subscribers(self, mock_get):
         amfi_text = (
             "Axis Mutual Fund\n"
             "Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Net Asset Value;Date\n"
@@ -191,7 +187,6 @@ class DailyEmailCommandTests(TestCase):
 
 
 class ChatbotApiTests(TestCase):
-
     def test_sip_chatbot_returns_projected_values(self):
         response = self.client.post(
             "/api/chatbot/",

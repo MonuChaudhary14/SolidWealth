@@ -2,19 +2,6 @@ import re
 
 from rest_framework import serializers
 
-
-def validate_mobile_number(value):
-    if value in (None, ""):
-        return value
-    v = re.sub(r"\s+", " ", value).strip()
-    if len(v) > 20:
-        raise serializers.ValidationError("Mobile number too long")
-    # Accept optional leading +, 1-3 country digits, optional single space, then digits and spaces
-    if not re.match(r"^\+?\d{1,3}\s?\d[\d\s]{4,}$", v):
-        raise serializers.ValidationError("Invalid mobile number format")
-    return v
-
-
 from .models import (
     BlogPost,
     EmailSubscriber,
@@ -22,6 +9,18 @@ from .models import (
     MutualFundPerformance,
     NavEntry,
 )
+
+
+def validate_mobile_number(value):
+    if value in (None, ""):
+        return value
+    v = re.sub(r"\s+", " ", value).strip()
+    if len(v) > 20:
+        raise serializers.ValidationError("Mobile number too long")
+
+    if not re.match(r"^\+?\d{1,3}\s?\d[\d\s]{4,}$", v):
+        raise serializers.ValidationError("Invalid mobile number format")
+    return v
 
 
 class NavEntrySerializer(serializers.ModelSerializer):

@@ -254,7 +254,7 @@ def get_featured_blog_posts(now=None):
 def fetch_nav_text():
     resp = requests.get(AMFI_URL, timeout=30)
     resp.raise_for_status()
-    # AMFI file is usually in utf-8 or latin1; try utf-8 then fallback
+
     try:
         return resp.text
     except Exception:
@@ -264,7 +264,7 @@ def fetch_nav_text():
 def fetch_and_store_nav(force=False):
     text = fetch_nav_text()
     parsed = parse_nav_lines(text)
-    # Replace the previous NAV dataset only after a successful fetch and parse.
+
     saved_dates = set()
     entries_to_create = []
     for item in parsed:
@@ -300,7 +300,6 @@ def fetch_and_store_nav(force=False):
         pass
 
     return list(saved_dates)
-
 
 
 class NavListAPIView(APIView):
@@ -360,15 +359,13 @@ class NavListAPIView(APIView):
 
         qs = NavEntry.objects.filter(nav_date=req_date)
         if not qs.exists():
-            # try to fetch and store today's data
             try:
                 fetch_and_store_nav()
             except Exception:
-                # fallback to live fetch and parse without storing
                 try:
                     txt = fetch_nav_text()
                     parsed = parse_nav_lines(txt)
-                    # filter parsed in-memory
+
                     filtered = [p for p in parsed if p.get("nav_date") == req_date]
                     if scheme_code:
                         filtered = [
@@ -421,7 +418,6 @@ def get_company_nav_summary():
         cache.set("company_nav_summary_cache", summary, timeout=86400)
         return summary
 
-    # Otherwise fetch from AMFI and store
     fetch_and_store_nav()
     summary = cache.get("company_nav_summary_cache")
     if summary is not None:
@@ -471,7 +467,6 @@ class CompanyNavSummaryAPIView(APIView):
                 "results": summary,
             }
         )
-
 
 
 class MarketSnapshotAPIView(APIView):

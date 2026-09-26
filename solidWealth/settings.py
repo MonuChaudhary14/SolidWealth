@@ -15,18 +15,13 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("SECRET_KEY")
 
-# SECURITY WARNING: don't run with debug turned on in production!
+
 DEBUG = False
 
 env_hosts = os.getenv("ALLOWED_HOSTS", "")
@@ -44,8 +39,6 @@ for default_host in ["localhost", "127.0.0.1", "0.0.0.0"]:
     if default_host not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(default_host)
 
-
-# Application definition
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -93,9 +86,6 @@ TEMPLATES = [
 WSGI_APPLICATION = "solidWealth.wsgi.application"
 
 
-# Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -107,9 +97,6 @@ DATABASES = {
     }
 }
 
-
-# Password validation
-# https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -127,9 +114,6 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/6.0/topics/i18n/
-
 LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "Asia/Kolkata"
@@ -138,9 +122,6 @@ USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
@@ -162,7 +143,7 @@ CSRF_TRUSTED_ORIGINS = [
     "https://solid-wealth.vercel.app",
 ]
 
-# Cron jobs (use django-crontab).
+
 CRONJOBS = [
     ("30 0 * * *", "django.core.management.call_command", ["fetch_nav"]),
     ("0 6 * * *", "django.core.management.call_command", ["update_market_snapshot"]),
@@ -189,7 +170,7 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-# Cache configuration
+
 redis_cache_url = os.getenv("REDIS_URL") or os.getenv("CELERY_BROKER_URL")
 if redis_cache_url:
     CACHES = {
@@ -206,7 +187,6 @@ else:
     }
 
 
-# DRF Spectacular (OpenAPI) settings
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }

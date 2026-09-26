@@ -59,45 +59,41 @@ class MutualFundDataUploadAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
 
-        # Parse the excel file
         try:
             df = pd.read_excel(obj.file.path)
-            # Read without header to search for the correct header row
+
             df_temp = pd.read_excel(obj.file.path, header=None)
-            
+
             header_row_index = None
             for idx, row in df_temp.iterrows():
-                # Check if any cell in this row contains "Scheme Name" (ignoring spaces)
                 if any("Scheme Name" in str(cell).strip() for cell in row.values):
                     header_row_index = idx
                     break
-            
+
             if header_row_index is None:
                 from django.contrib import messages
-                messages.error(request, f"Error: Could not find a row containing 'Scheme Name' anywhere in the Excel file.")
+
+                messages.error(
+                    request,
+                    "Error: Could not find a row containing 'Scheme Name' anywhere in the Excel file.",
+                )
                 return
-                
-            # Read the file again using the correct header row
+
             df = pd.read_excel(obj.file.path, header=header_row_index)
-            
-            # Robustly normalize column names:
-            # 1. Convert to string
-            # 2. Replace newlines with spaces (since Excel headers often use Alt+Enter)
-            # 3. Replace '[' with '(' and ']' with ')' just in case
-            # 4. Remove multiple consecutive spaces
+
             def normalize_header(col):
-                c = str(col).replace('\n', ' ').replace('\r', ' ')
-                c = c.replace('[', '(').replace(']', ')')
-                return ' '.join(c.split())
-                
+                c = str(col).replace("\n", " ").replace("\r", " ")
+                c = c.replace("[", "(").replace("]", ")")
+                return " ".join(c.split())
+
             df.columns = [normalize_header(col) for col in df.columns]
-            
+
         except Exception as e:
             from django.contrib import messages
+
             messages.error(request, f"Error reading Excel file: {e}")
             return
 
-        # Delete old records
         MutualFundPerformance.objects.filter(
             category=obj.category, period=obj.period
         ).delete()
@@ -116,8 +112,9 @@ class MutualFundDataUploadAdmin(admin.ModelAdmin):
             return str(val).strip()
 
         records = []
-        for index, row in df.iterrows():
+        for _index, row in df.iterrows():
             scheme_name = row.get("Scheme Name")
+
             if pd.isna(scheme_name) or str(scheme_name).strip() in [
                 "Category Average",
                 "NIFTY 50 TRI",

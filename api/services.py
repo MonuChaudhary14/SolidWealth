@@ -27,6 +27,7 @@ MARKET_TICKERS = {
     "usd_inr_rate": "USDINR=X",
 }
 
+
 def _try_parse_nav_date(date_text):
     value = (date_text or "").strip()
     for fmt in ("%d-%b-%Y", "%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d"):
@@ -155,7 +156,7 @@ def _extract_latest_close_value(history, ticker_symbol):
 
 
 def fetch_market_snapshot_values():
-    values = {field_name: None for field_name in MARKET_TICKERS}
+    values = dict.fromkeys(MARKET_TICKERS)
     ticker_symbols = list(MARKET_TICKERS.values())
 
     try:
@@ -186,7 +187,6 @@ def fetch_market_snapshot_values():
                 )
                 values[field_name] = None
 
-    # Convert Troy Ounce prices to per-gram prices
     troy_oz = Decimal("31.1034768")
     for field in ["gold_price", "silver_price"]:
         if values.get(field) is not None:
@@ -232,7 +232,7 @@ def build_daily_email_body(subscriber, nav_rows=None, report_date=None):
     lines = [
         f"Hello {name},",
         "",
-        f'Here is your Solid Wealth report dated {report_date.strftime("%d %b %Y")}.',
+        f"Here is your Solid Wealth report dated {report_date.strftime('%d %b %Y')}.",
         "",
         "NAV Snapshot (Top 10 different companies):",
     ]
@@ -314,8 +314,6 @@ def send_daily_subscription_emails():
         nav_rows = _fetch_amfi_nav_snapshot(limit=10)
     except Exception:
         nav_rows = []
-
-    # Configure file logging for per-recipient results
 
     logger = logging.getLogger("solidwealth.email_sender")
     log_path = os.getenv("EMAIL_LOG_FILE")

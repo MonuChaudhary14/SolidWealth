@@ -1,0 +1,32 @@
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+exclude = [
+    ".git",
+    "__pycache__",
+    "venv",
+    "*/migrations/*",
+    "staticfiles",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "W",
+    "F",
+    "I",
+    "C4",
+    "UP",
+    "B",
+]
+ignore = [
+    "E501",
+    "B008",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["api", "solidWealth"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
