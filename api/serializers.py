@@ -157,7 +157,7 @@ class MutualFundPerformanceSerializer(serializers.ModelSerializer):
 
 class MutualFundCategorySerializer(serializers.Serializer):
     category = serializers.CharField()
-    periods = serializers.ListField(child=serializers.CharField())
+    periods = serializers.ListField(child=serializers.CharField(), required=False, default=list)
 
 
 class MarketIndexItemSerializer(serializers.Serializer):

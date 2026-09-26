@@ -829,7 +829,7 @@ class ChatbotAPIView(APIView):
 
 
 class MutualFundPerformanceListAPIView(ListAPIView):
-    """Return mutual fund performance data filtered by category and period."""
+    """Return mutual fund performance data filtered by category."""
 
     serializer_class = MutualFundPerformanceSerializer
 
@@ -839,50 +839,34 @@ class MutualFundPerformanceListAPIView(ListAPIView):
                 "category",
                 OpenApiTypes.STR,
                 OpenApiParameter.QUERY,
-                description="Category (e.g. Childrens Fund)",
-                required=True,
-            ),
-            OpenApiParameter(
-                "period",
-                OpenApiTypes.STR,
-                OpenApiParameter.QUERY,
-                description="Period (e.g. Greater than 1 Year)",
-                required=True,
+                description="Category (e.g. Equity: ELSS)",
+                required=False,
             ),
         ],
         responses=MutualFundPerformanceSerializer(many=True),
     )
     def get_queryset(self):
         category = self.request.query_params.get("category")
-        period = self.request.query_params.get("period")
-        if category and period:
-            return MutualFundPerformance.objects.filter(
-                category=category, period=period
-            )
-        return MutualFundPerformance.objects.none()
+        if category:
+            return MutualFundPerformance.objects.filter(category=category).order_by("scheme_name")
+        return MutualFundPerformance.objects.all().order_by("scheme_name")
 
 
 class MutualFundPerformanceCategoriesAPIView(APIView):
-    """Return available mutual fund categories and their associated periods."""
+    """Return available mutual fund categories."""
 
     @extend_schema(
         responses=MutualFundCategorySerializer(many=True),
     )
     def get(self, request):
-        pairs = (
-            MutualFundPerformance.objects.values("category", "period")
+        categories = (
+            MutualFundPerformance.objects.values_list("category", flat=True)
             .distinct()
-            .order_by("category", "period")
+            .order_by("category")
         )
-        category_map = {}
-        for pair in pairs:
-            cat = pair.get("category")
-            per = pair.get("period")
-            if cat and per:
-                category_map.setdefault(cat, []).append(per)
-
         result = [
-            {"category": cat, "periods": periods}
-            for cat, periods in category_map.items()
+            {"category": cat, "periods": []}
+            for cat in categories
+            if cat
         ]
         return Response(result, status=status.HTTP_200_OK)

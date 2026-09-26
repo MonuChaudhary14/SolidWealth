@@ -122,22 +122,23 @@ class MarketSnapshot(models.Model):
 
 
 class MutualFundDataUpload(models.Model):
-    PERIOD_CHOICES = [
-        ("Greater than 1 Year", "Greater than 1 Year"),
-        ("Less than 1 Year", "Less than 1 Year"),
-    ]
-    category = models.CharField(max_length=255, help_text="e.g. Childrens Fund")
-    period = models.CharField(max_length=100, choices=PERIOD_CHOICES)
+    category = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="e.g. Equity: ELSS (leave blank to auto-detect from Excel)",
+    )
+    period = models.CharField(max_length=100, blank=True, default="")
     file = models.FileField(upload_to="uploads/mutual_funds/")
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.category} - {self.period} (Uploaded: {self.uploaded_at.date()})"
+        cat = self.category or "Auto-detected"
+        return f"{cat} (Uploaded: {self.uploaded_at.date()})"
 
 
 class MutualFundPerformance(models.Model):
     category = models.CharField(max_length=255, db_index=True)
-    period = models.CharField(max_length=100, db_index=True)
+    period = models.CharField(max_length=100, blank=True, default="", db_index=True)
     scheme_name = models.CharField(max_length=512)
     nav = models.DecimalField(max_digits=20, decimal_places=6, null=True, blank=True)
     launch_date = models.DateField(null=True, blank=True)
@@ -150,6 +151,7 @@ class MutualFundPerformance(models.Model):
     ter_percent = models.DecimalField(
         max_digits=10, decimal_places=4, null=True, blank=True
     )
+    rating = models.CharField(max_length=100, null=True, blank=True)
     ytd_return = models.DecimalField(
         max_digits=10, decimal_places=4, null=True, blank=True
     )
@@ -185,13 +187,28 @@ class MutualFundPerformance(models.Model):
         max_digits=10, decimal_places=4, null=True, blank=True
     )
     rank_10yr = models.CharField(max_length=50, null=True, blank=True)
+    mean = models.DecimalField(
+        max_digits=10, decimal_places=4, null=True, blank=True
+    )
+    sharpe_ratio = models.DecimalField(
+        max_digits=10, decimal_places=4, null=True, blank=True
+    )
+    alpha = models.DecimalField(
+        max_digits=10, decimal_places=4, null=True, blank=True
+    )
+    beta = models.DecimalField(
+        max_digits=10, decimal_places=4, null=True, blank=True
+    )
+    std_deviation = models.DecimalField(
+        max_digits=10, decimal_places=4, null=True, blank=True
+    )
     fund_manager = models.CharField(max_length=512, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         indexes = [
-            models.Index(fields=["category", "period"]),
+            models.Index(fields=["category"]),
         ]
 
     def __str__(self):
-        return f"{self.scheme_name} ({self.category} - {self.period})"
+        return f"{self.scheme_name} ({self.category})"
