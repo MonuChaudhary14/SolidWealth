@@ -64,11 +64,20 @@ def _fetch_amfi_nav_snapshot(limit=10):
         if len(parts) < 6:
             continue
 
-        scheme_name = parts[3] if len(parts) > 3 else ""
+        if len(parts) >= 8:
+            base_scheme_name = parts[3]
+            plan = parts[4]
+            option = parts[5]
+            components = [c for c in [base_scheme_name, plan, option] if c]
+            scheme_name = " - ".join(components)
+            nav_value = parts[6] if len(parts) > 6 and parts[6] != "-" else ""
+        else:
+            scheme_name = parts[3] if len(parts) > 3 else ""
+            nav_value = parts[4] if len(parts) > 4 and parts[4] != "-" else ""
+
         if "regular" not in scheme_name.lower():
             continue
 
-        nav_value = parts[4] if len(parts) > 4 else ""
         nav_date = _try_parse_nav_date(parts[-1])
         if not nav_date:
             continue
@@ -81,7 +90,7 @@ def _fetch_amfi_nav_snapshot(limit=10):
         }
 
         existing = company_rows.get(current_company)
-        if existing is None or nav_date > existing["nav_date"]:
+        if existing is None or (nav_date > existing["nav_date"] and candidate["nav"]):
             company_rows[current_company] = candidate
 
     rows = sorted(company_rows.values(), key=lambda row: row["company_name"])
