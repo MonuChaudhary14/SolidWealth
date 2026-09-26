@@ -526,6 +526,8 @@ class EmailSubscriberCreateAPIView(APIView):
             name=serializer.validated_data["name"],
             email=serializer.validated_data["email"],
             mobile_number=serializer.validated_data.get("mobile_number"),
+            source=serializer.validated_data.get("source"),
+            interests=serializer.validated_data.get("interests"),
         )
         response_serializer = EmailSubscriberSerializer(subscriber)
         return Response(

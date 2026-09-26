@@ -210,16 +210,22 @@ def upsert_market_snapshot(snapshot_date=None):
     return snapshot, created
 
 
-def upsert_subscriber(name, email, mobile_number=None):
+def upsert_subscriber(name, email, mobile_number=None, source=None, interests=None):
+    defaults = {
+        "name": (name or "").strip(),
+        "mobile_number": (
+            re.sub(r"\s+", " ", (mobile_number or "")).strip() or None
+        ),
+        "is_active": True,
+    }
+    if source is not None:
+        defaults["source"] = (source or "").strip() or None
+    if interests is not None:
+        defaults["interests"] = interests if isinstance(interests, list) else []
+
     subscriber, created = EmailSubscriber.objects.update_or_create(
         email=(email or "").strip().lower(),
-        defaults={
-            "name": (name or "").strip(),
-            "mobile_number": (
-                re.sub(r"\s+", " ", (mobile_number or "")).strip() or None
-            ),
-            "is_active": True,
-        },
+        defaults=defaults,
     )
     return subscriber, created
 

@@ -43,8 +43,20 @@ class EmailSubscriberSerializer(serializers.ModelSerializer):
     mobile_number = serializers.CharField(
         required=False,
         allow_blank=True,
+        allow_null=True,
         max_length=20,
         validators=[validate_mobile_number],
+    )
+    source = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        max_length=100,
+    )
+    interests = serializers.ListField(
+        child=serializers.CharField(max_length=100),
+        required=False,
+        default=list,
     )
 
     class Meta:
@@ -54,6 +66,8 @@ class EmailSubscriberSerializer(serializers.ModelSerializer):
             "name",
             "email",
             "mobile_number",
+            "source",
+            "interests",
             "is_active",
             "created_at",
             "updated_at",

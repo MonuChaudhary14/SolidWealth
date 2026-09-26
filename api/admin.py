@@ -22,9 +22,9 @@ class NavEntryAdmin(admin.ModelAdmin):
 
 @admin.register(EmailSubscriber)
 class EmailSubscriberAdmin(admin.ModelAdmin):
-    list_display = ("name", "email", "is_active", "created_at")
-    search_fields = ("name", "email")
-    list_filter = ("is_active", "created_at")
+    list_display = ("name", "email", "mobile_number", "source", "is_active", "created_at")
+    search_fields = ("name", "email", "mobile_number", "source")
+    list_filter = ("source", "is_active", "created_at")
 
 
 @admin.register(BlogPost)

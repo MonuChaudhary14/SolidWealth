@@ -69,6 +69,8 @@ class SubscriberApiTests(TestCase):
                     "name": "  Jane Doe  ",
                     "email": "Jane.Doe@example.com",
                     "mobile_number": "+91 9876543210",
+                    "source": "Meta Ads",
+                    "interests": ["Meta Ads"],
                 }
             ),
             content_type="application/json",
@@ -78,6 +80,8 @@ class SubscriberApiTests(TestCase):
         subscriber = EmailSubscriber.objects.get(email="jane.doe@example.com")
         self.assertEqual(subscriber.name, "Jane Doe")
         self.assertEqual(subscriber.mobile_number, "+91 9876543210")
+        self.assertEqual(subscriber.source, "Meta Ads")
+        self.assertEqual(subscriber.interests, ["Meta Ads"])
 
         response = self.client.post(
             "/api/subscribers/",
@@ -86,6 +90,8 @@ class SubscriberApiTests(TestCase):
                     "name": "Jane Updated",
                     "email": "jane.doe@example.com",
                     "mobile_number": "+90 123456789",
+                    "source": "Website",
+                    "interests": ["Website", "Mutual Funds"],
                 }
             ),
             content_type="application/json",
@@ -96,6 +102,8 @@ class SubscriberApiTests(TestCase):
         subscriber.refresh_from_db()
         self.assertEqual(subscriber.name, "Jane Updated")
         self.assertEqual(subscriber.mobile_number, "+90 123456789")
+        self.assertEqual(subscriber.source, "Website")
+        self.assertEqual(subscriber.interests, ["Website", "Mutual Funds"])
 
 
 class BlogApiTests(TestCase):

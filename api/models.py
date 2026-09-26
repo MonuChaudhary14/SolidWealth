@@ -38,6 +38,8 @@ class EmailSubscriber(models.Model):
     name = models.CharField(max_length=255)
     email = models.EmailField(unique=True, db_index=True)
     mobile_number = models.CharField(max_length=20, blank=True, null=True)
+    source = models.CharField(max_length=100, blank=True, null=True, db_index=True)
+    interests = models.JSONField(default=list, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -51,6 +53,10 @@ class EmailSubscriber(models.Model):
         m = self.mobile_number or ""
         m = re.sub(r"\s+", " ", m).strip()
         self.mobile_number = m or None
+        if self.source:
+            self.source = self.source.strip() or None
+        if not isinstance(self.interests, list):
+            self.interests = []
         super().save(*args, **kwargs)
 
     def __str__(self):
