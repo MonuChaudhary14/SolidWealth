@@ -389,3 +389,65 @@ class MutualFundPerformanceCategoriesApiTests(TestCase):
         )
         self.assertEqual(data[1]["category"], "Large Cap Fund")
         self.assertEqual(data[1]["periods"], ["Greater than 1 Year"])
+
+
+class MarketSummaryApiTests(TestCase):
+    def setUp(self):
+        MarketSnapshot.objects.create(
+            snapshot_date=date(2026, 9, 26),
+            gold_price=138.405746,
+            silver_price=2.061024,
+            crude_oil_price=92.57,
+            bitcoin_price=84172.42,
+            nifty_50_value=25810.85,
+            sensex_value=84544.31,
+            usd_inr_rate=83.95,
+        )
+
+    def test_market_summary_returns_all_four_groups_in_inr(self):
+        response = self.client.get("/api/market-summary/")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+
+        self.assertEqual(data["currency"], "INR")
+        self.assertIn("indices", data)
+        self.assertIn("metals", data)
+        self.assertIn("macro", data)
+        self.assertIn("crypto", data)
+
+        # 1. Indices
+        self.assertEqual(data["indices"]["nifty_50"]["symbol"], "^NSEI")
+        self.assertAlmostEqual(float(data["indices"]["nifty_50"]["value"]), 25810.85, places=2)
+        self.assertEqual(data["indices"]["sensex"]["symbol"], "^BSESN")
+        self.assertAlmostEqual(float(data["indices"]["sensex"]["value"]), 84544.31, places=2)
+
+        # 2. Metals in INR
+        self.assertEqual(data["metals"]["gold"]["currency"], "INR")
+        self.assertAlmostEqual(float(data["metals"]["gold"]["price_per_10g_inr"]), 116191.62, places=1)
+        self.assertEqual(data["metals"]["silver"]["currency"], "INR")
+        self.assertAlmostEqual(float(data["metals"]["silver"]["price_per_kg_inr"]), 173022.96, places=1)
+
+        # 3. Macro in INR
+        self.assertEqual(data["macro"]["crude_oil"]["currency"], "INR")
+        self.assertAlmostEqual(float(data["macro"]["crude_oil"]["value_inr"]), 7771.25, places=1)
+        self.assertAlmostEqual(float(data["macro"]["usd_inr"]["value_inr"]), 83.95, places=2)
+
+        # 4. Crypto in INR
+        self.assertEqual(data["crypto"]["bitcoin"]["currency"], "INR")
+        self.assertAlmostEqual(float(data["crypto"]["bitcoin"]["price_in_inr"]), 7066274.66, places=1)
+
+    def test_market_summary_category_filter(self):
+        response = self.client.get("/api/market-summary/?category=metals")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("gold", data["data"])
+        self.assertIn("silver", data["data"])
+        self.assertNotIn("indices", data)
+
+    def test_market_summary_symbol_filter(self):
+        response = self.client.get("/api/market-summary/?symbol=nifty")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["asset"]["name"], "NIFTY 50")
+        self.assertEqual(data["asset"]["symbol"], "^NSEI")
+

@@ -158,3 +158,55 @@ class MutualFundPerformanceSerializer(serializers.ModelSerializer):
 class MutualFundCategorySerializer(serializers.Serializer):
     category = serializers.CharField()
     periods = serializers.ListField(child=serializers.CharField())
+
+
+class MarketIndexItemSerializer(serializers.Serializer):
+    symbol = serializers.CharField()
+    name = serializers.CharField()
+    category = serializers.CharField(default="indices")
+    value = serializers.DecimalField(max_digits=20, decimal_places=2, allow_null=True)
+    unit = serializers.CharField(default="points")
+    formatted = serializers.CharField()
+
+
+class MarketMetalItemSerializer(serializers.Serializer):
+    symbol = serializers.CharField()
+    name = serializers.CharField()
+    category = serializers.CharField(default="metals")
+    currency = serializers.CharField(default="INR")
+    price_per_gram_inr = serializers.DecimalField(max_digits=20, decimal_places=2, allow_null=True)
+    price_per_10g_inr = serializers.DecimalField(max_digits=20, decimal_places=2, allow_null=True, required=False)
+    price_per_kg_inr = serializers.DecimalField(max_digits=20, decimal_places=2, allow_null=True, required=False)
+    price_per_gram_usd = serializers.DecimalField(max_digits=20, decimal_places=4, allow_null=True)
+    formatted = serializers.CharField()
+
+
+class MarketMacroItemSerializer(serializers.Serializer):
+    symbol = serializers.CharField()
+    name = serializers.CharField()
+    category = serializers.CharField(default="macro")
+    currency = serializers.CharField(default="INR")
+    value_inr = serializers.DecimalField(max_digits=20, decimal_places=2, allow_null=True)
+    value_usd = serializers.DecimalField(max_digits=20, decimal_places=2, allow_null=True, required=False)
+    formatted = serializers.CharField()
+
+
+class MarketCryptoItemSerializer(serializers.Serializer):
+    symbol = serializers.CharField()
+    name = serializers.CharField()
+    category = serializers.CharField(default="crypto")
+    currency = serializers.CharField(default="INR")
+    price_in_inr = serializers.DecimalField(max_digits=20, decimal_places=2, allow_null=True)
+    price_in_usd = serializers.DecimalField(max_digits=20, decimal_places=2, allow_null=True)
+    formatted = serializers.CharField()
+
+
+class MarketSummarySerializer(serializers.Serializer):
+    snapshot_date = serializers.DateField()
+    currency = serializers.CharField(default="INR")
+    usd_inr_rate = serializers.DecimalField(max_digits=10, decimal_places=4, allow_null=True)
+    indices = serializers.DictField()
+    metals = serializers.DictField()
+    macro = serializers.DictField()
+    crypto = serializers.DictField()
+

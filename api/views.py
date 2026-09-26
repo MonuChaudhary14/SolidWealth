@@ -26,6 +26,7 @@ from .serializers import (
     CompanyNavSummarySerializer,
     EmailSubscriberSerializer,
     MarketSnapshotSerializer,
+    MarketSummarySerializer,
     MutualFundCategorySerializer,
     MutualFundPerformanceSerializer,
     NavEntrySerializer,
@@ -511,6 +512,245 @@ class MarketSnapshotAPIView(APIView):
             )
 
         return Response(MarketSnapshotSerializer(snapshot).data)
+
+
+def _format_inr(val, decimals=2):
+    if val is None:
+        return "-"
+    try:
+        val_float = float(val)
+        return f"₹{val_float:,.{decimals}f}"
+    except Exception:
+        return f"₹{val}"
+
+
+def _format_points(val, decimals=2):
+    if val is None:
+        return "-"
+    try:
+        val_float = float(val)
+        return f"{val_float:,.{decimals}f} pts"
+    except Exception:
+        return f"{val} pts"
+
+
+class MarketSummaryAPIView(APIView):
+    """
+    Return market data formatted in Indian Rupees (INR) for the 4 core groups:
+    1. NIFTY 50 & SENSEX (Indices in Points)
+    2. Gold & Silver (Metals in INR per gram / 10g / kg)
+    3. Crude Oil & USD/INR (Macro energy in INR per barrel & Forex rate)
+    4. Bitcoin (Crypto in INR & USD)
+    """
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "date",
+                OpenApiTypes.DATE,
+                OpenApiParameter.QUERY,
+                description="Snapshot date in YYYY-MM-DD format",
+            ),
+            OpenApiParameter(
+                "category",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                description="Filter by category: 'indices', 'metals', 'macro', or 'crypto'",
+            ),
+            OpenApiParameter(
+                "symbol",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                description="Filter by symbol/alias: 'nifty', 'sensex', 'gold', 'silver', 'crude', 'usdinr', 'bitcoin'",
+            ),
+        ],
+        responses=MarketSummarySerializer,
+    )
+    def get(self, request):
+        date_value = request.GET.get("date")
+        if date_value:
+            try:
+                snapshot_date = datetime.fromisoformat(date_value).date()
+            except Exception:
+                return Response(
+                    {"error": "invalid date"}, status=status.HTTP_400_BAD_REQUEST
+                )
+            snapshot = MarketSnapshot.objects.filter(
+                snapshot_date=snapshot_date
+            ).first()
+            if snapshot is None:
+                return Response(
+                    {"error": "snapshot not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+        else:
+            snapshot = MarketSnapshot.objects.order_by(
+                "-snapshot_date", "-created_at"
+            ).first()
+            if snapshot is None:
+                return Response(
+                    {"error": "snapshot not available"}, status=status.HTTP_404_NOT_FOUND
+                )
+
+        usd_inr = snapshot.usd_inr_rate or Decimal("83.95")
+        gold_usd = snapshot.gold_price  # USD per gram
+        silver_usd = snapshot.silver_price  # USD per gram
+        crude_usd = snapshot.crude_oil_price  # USD per barrel
+        btc_usd = snapshot.bitcoin_price  # USD
+        nifty = snapshot.nifty_50_value  # Points
+        sensex = snapshot.sensex_value  # Points
+
+        # In INR conversions
+        gold_inr_per_gram = (gold_usd * usd_inr) if (gold_usd and usd_inr) else None
+        gold_inr_per_10g = (gold_inr_per_gram * 10) if gold_inr_per_gram else None
+
+        silver_inr_per_gram = (silver_usd * usd_inr) if (silver_usd and usd_inr) else None
+        silver_inr_per_kg = (silver_inr_per_gram * 1000) if silver_inr_per_gram else None
+
+        crude_inr_per_barrel = (crude_usd * usd_inr) if (crude_usd and usd_inr) else None
+        btc_inr = (btc_usd * usd_inr) if (btc_usd and usd_inr) else None
+
+        indices_data = {
+            "nifty_50": {
+                "symbol": "^NSEI",
+                "name": "NIFTY 50",
+                "category": "indices",
+                "value": nifty,
+                "unit": "points",
+                "formatted": _format_points(nifty),
+            },
+            "sensex": {
+                "symbol": "^BSESN",
+                "name": "SENSEX",
+                "category": "indices",
+                "value": sensex,
+                "unit": "points",
+                "formatted": _format_points(sensex),
+            },
+        }
+
+        metals_data = {
+            "gold": {
+                "symbol": "GC=F",
+                "name": "Gold (24K)",
+                "category": "metals",
+                "currency": "INR",
+                "price_per_gram_inr": round(gold_inr_per_gram, 2) if gold_inr_per_gram else None,
+                "price_per_10g_inr": round(gold_inr_per_10g, 2) if gold_inr_per_10g else None,
+                "price_per_gram_usd": round(gold_usd, 4) if gold_usd else None,
+                "formatted": f"{_format_inr(gold_inr_per_10g)} / 10g" if gold_inr_per_10g else _format_inr(gold_inr_per_gram),
+            },
+            "silver": {
+                "symbol": "SI=F",
+                "name": "Silver",
+                "category": "metals",
+                "currency": "INR",
+                "price_per_gram_inr": round(silver_inr_per_gram, 2) if silver_inr_per_gram else None,
+                "price_per_kg_inr": round(silver_inr_per_kg, 2) if silver_inr_per_kg else None,
+                "price_per_gram_usd": round(silver_usd, 4) if silver_usd else None,
+                "formatted": f"{_format_inr(silver_inr_per_kg)} / kg" if silver_inr_per_kg else _format_inr(silver_inr_per_gram),
+            },
+        }
+
+        macro_data = {
+            "crude_oil": {
+                "symbol": "CL=F",
+                "name": "Crude Oil (WTI)",
+                "category": "macro",
+                "currency": "INR",
+                "value_inr": round(crude_inr_per_barrel, 2) if crude_inr_per_barrel else None,
+                "value_usd": round(crude_usd, 2) if crude_usd else None,
+                "formatted": f"{_format_inr(crude_inr_per_barrel)} / barrel" if crude_inr_per_barrel else "-",
+            },
+            "usd_inr": {
+                "symbol": "USDINR=X",
+                "name": "USD / INR",
+                "category": "macro",
+                "currency": "INR",
+                "value_inr": round(usd_inr, 2) if usd_inr else None,
+                "formatted": _format_inr(usd_inr),
+            },
+        }
+
+        crypto_data = {
+            "bitcoin": {
+                "symbol": "BTC-USD",
+                "name": "Bitcoin",
+                "category": "crypto",
+                "currency": "INR",
+                "price_in_inr": round(btc_inr, 2) if btc_inr else None,
+                "price_in_usd": round(btc_usd, 2) if btc_usd else None,
+                "formatted": _format_inr(btc_inr),
+            }
+        }
+
+        # Category filter
+        category_param = (request.GET.get("category") or "").lower().strip()
+        if category_param:
+            if category_param in ("indices", "index"):
+                return Response(
+                    {"snapshot_date": snapshot.snapshot_date, "currency": "INR", "data": indices_data}
+                )
+            if category_param in ("metals", "commodities", "gold_silver"):
+                return Response(
+                    {"snapshot_date": snapshot.snapshot_date, "currency": "INR", "data": metals_data}
+                )
+            if category_param in ("macro", "energy_forex", "oil_forex"):
+                return Response(
+                    {"snapshot_date": snapshot.snapshot_date, "currency": "INR", "data": macro_data}
+                )
+            if category_param in ("crypto", "bitcoin"):
+                return Response(
+                    {"snapshot_date": snapshot.snapshot_date, "currency": "INR", "data": crypto_data}
+                )
+            return Response(
+                {
+                    "error": f"Unknown category '{category_param}'. Valid options: indices, metals, macro, crypto"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Symbol filter
+        symbol_param = (request.GET.get("symbol") or "").lower().strip()
+        if symbol_param:
+            lookup = {
+                "nifty": indices_data["nifty_50"],
+                "^nsei": indices_data["nifty_50"],
+                "sensex": indices_data["sensex"],
+                "^bsesn": indices_data["sensex"],
+                "gold": metals_data["gold"],
+                "gc=f": metals_data["gold"],
+                "silver": metals_data["silver"],
+                "si=f": metals_data["silver"],
+                "crude": macro_data["crude_oil"],
+                "oil": macro_data["crude_oil"],
+                "cl=f": macro_data["crude_oil"],
+                "usdinr": macro_data["usd_inr"],
+                "usdinr=x": macro_data["usd_inr"],
+                "bitcoin": crypto_data["bitcoin"],
+                "btc": crypto_data["bitcoin"],
+                "btc-usd": crypto_data["bitcoin"],
+            }
+            if symbol_param in lookup:
+                return Response(
+                    {"snapshot_date": snapshot.snapshot_date, "asset": lookup[symbol_param]}
+                )
+            return Response(
+                {"error": f"Symbol '{symbol_param}' not found in market summary"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(
+            {
+                "snapshot_date": snapshot.snapshot_date,
+                "currency": "INR",
+                "usd_inr_rate": round(usd_inr, 4) if usd_inr else None,
+                "indices": indices_data,
+                "metals": metals_data,
+                "macro": macro_data,
+                "crypto": crypto_data,
+            }
+        )
+
 
 
 class EmailSubscriberCreateAPIView(APIView):

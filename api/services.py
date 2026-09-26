@@ -7,7 +7,6 @@ from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
 import requests
-import yfinance as yf
 from django.core.mail import send_mail
 from django.db import transaction
 from django.utils import timezone
@@ -118,15 +117,36 @@ def _to_decimal(value):
         return None
 
 
+def _fetch_from_chart_endpoint(ticker_symbol):
+    try:
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker_symbol}?interval=1d&range=5d"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        }
+        res = requests.get(url, headers=headers, timeout=10)
+        if res.status_code == 200:
+            data = res.json()
+            result = data.get("chart", {}).get("result", [{}])[0]
+            meta = result.get("meta", {})
+            price = meta.get("regularMarketPrice") or meta.get("chartPreviousClose")
+            if price is not None:
+                return _to_decimal(price)
+    except Exception:
+        pass
+    return None
+
+
 def _fetch_latest_market_value(ticker_symbol):
-    ticker = yf.Ticker(ticker_symbol)
-    history = ticker.history(period="10d", interval="1d")
-    if history is None or history.empty or "Close" not in history:
-        return None
-    close_values = history["Close"].dropna()
-    if close_values.empty:
-        return None
-    return _to_decimal(close_values.iloc[-1])
+    try:
+        ticker = yf.Ticker(ticker_symbol)
+        history = ticker.history(period="10d", interval="1d")
+        if history is not None and not history.empty and "Close" in history:
+            close_values = history["Close"].dropna()
+            if not close_values.empty:
+                return _to_decimal(close_values.iloc[-1])
+    except Exception:
+        pass
+    return _fetch_from_chart_endpoint(ticker_symbol)
 
 
 def _extract_latest_close_value(history, ticker_symbol):
@@ -177,8 +197,8 @@ def fetch_market_snapshot_values():
         for field_name, ticker_symbol in MARKET_TICKERS.items():
             values[field_name] = _extract_latest_close_value(history, ticker_symbol)
 
-    if not any(value is not None for value in values.values()):
-        for field_name, ticker_symbol in MARKET_TICKERS.items():
+    for field_name, ticker_symbol in MARKET_TICKERS.items():
+        if values.get(field_name) is None:
             try:
                 values[field_name] = _fetch_latest_market_value(ticker_symbol)
             except Exception:
@@ -192,23 +212,31 @@ def fetch_market_snapshot_values():
         if values.get(field) is not None:
             values[field] = (values[field] / troy_oz).quantize(Decimal("0.000001"))
 
+    # Fallback to previous known values for any still-missing field
+    latest_existing = MarketSnapshot.objects.order_by("-snapshot_date", "-created_at").first()
+    if latest_existing:
+        for field in MARKET_TICKERS:
+            if values.get(field) is None:
+                values[field] = getattr(latest_existing, field)
+
     return values
 
 
 def upsert_market_snapshot(snapshot_date=None):
     snapshot_date = snapshot_date or timezone.localdate()
     values = fetch_market_snapshot_values()
-    if not any(value is not None for value in values.values()):
+
+    defaults = {k: v for k, v in values.items() if v is not None}
+    if not defaults:
         raise ValueError("No market snapshot values could be fetched")
 
     with transaction.atomic():
         MarketSnapshot.objects.exclude(snapshot_date=snapshot_date).delete()
         snapshot, created = MarketSnapshot.objects.update_or_create(
             snapshot_date=snapshot_date,
-            defaults=values,
+            defaults=defaults,
         )
     return snapshot, created
-
 
 def upsert_subscriber(name, email, mobile_number=None, source=None, interests=None):
     defaults = {
