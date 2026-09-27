@@ -28,7 +28,7 @@ ALLOWED_HOSTS = [
     h.strip()
     for h in os.getenv(
         "ALLOWED_HOSTS",
-        "backend.solidwealthindia.com,solidwealthindia.com,www.solidwealthindia.com,127.0.0.1,localhost,0.0.0.0",
+        "backend.solidwealthindia.com,solidwealthindia.com,www.solidwealthindia.com,127.0.0.1,localhost,0.0.0.0,web,prometheus",
     ).split(",")
     if h.strip()
 ]
