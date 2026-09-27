@@ -5,6 +5,11 @@ python manage.py migrate
 
 python manage.py collectstatic --noinput
 
+if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then
+  echo "Creating/verifying superuser from environment"
+  python manage.py createsuperuser --noinput || true
+fi
+
 echo "Setting up crontab"
 python manage.py crontab add
 

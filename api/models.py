@@ -210,3 +210,31 @@ class MutualFundPerformance(models.Model):
 
     def __str__(self):
         return f"{self.scheme_name} ({self.category})"
+
+
+class PageVisitLog(models.Model):
+    path = models.CharField(max_length=512, db_index=True)
+    method = models.CharField(max_length=10, default="GET")
+    ip_address = models.CharField(max_length=64, blank=True, null=True, db_index=True)
+    user = models.ForeignKey(
+        "auth.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="page_visits",
+    )
+    user_agent = models.TextField(blank=True, default="")
+    referer = models.TextField(blank=True, default="")
+    status_code = models.PositiveIntegerField(default=200, db_index=True)
+    response_time_ms = models.FloatField(default=0.0)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["path", "created_at"]),
+            models.Index(fields=["status_code", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.method} {self.path} - {self.status_code} ({self.created_at.strftime('%Y-%m-%d %H:%M:%S')})"

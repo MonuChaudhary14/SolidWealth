@@ -870,3 +870,117 @@ class MutualFundPerformanceCategoriesAPIView(APIView):
             if cat
         ]
         return Response(result, status=status.HTTP_200_OK)
+
+
+class AnalyticsOverviewAPIView(APIView):
+    """Return aggregated analytics overview including user counts, visits, and top URLs."""
+
+    @extend_schema(
+        summary="Analytics overview metrics",
+        description="Returns system metrics including registered user count, email subscribers, unique visitors, visits by day, and top opened URLs.",
+    )
+    def get(self, request):
+        from django.contrib.auth import get_user_model
+        from django.db.models import Avg, Count
+        from .models import EmailSubscriber, PageVisitLog
+
+        User = get_user_model()
+        now = timezone.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        seven_days_ago = now - timedelta(days=7)
+        thirty_days_ago = now - timedelta(days=30)
+
+        total_users = User.objects.count()
+        total_subscribers = EmailSubscriber.objects.count()
+
+        total_page_views = PageVisitLog.objects.count()
+        visits_today = PageVisitLog.objects.filter(created_at__gte=today_start).count()
+        visits_7d = PageVisitLog.objects.filter(created_at__gte=seven_days_ago).count()
+        visits_30d = PageVisitLog.objects.filter(created_at__gte=thirty_days_ago).count()
+
+        unique_visitors_today = (
+            PageVisitLog.objects.filter(created_at__gte=today_start)
+            .values("ip_address")
+            .distinct()
+            .count()
+        )
+        unique_visitors_total = (
+            PageVisitLog.objects.values("ip_address").distinct().count()
+        )
+
+        # Top 20 URLs and hit counts
+        top_urls = list(
+            PageVisitLog.objects.values("path", "method")
+            .annotate(
+                hits=Count("id"),
+                avg_latency_ms=Avg("response_time_ms"),
+            )
+            .order_by("-hits")[:20]
+        )
+        for u in top_urls:
+            if u.get("avg_latency_ms") is not None:
+                u["avg_latency_ms"] = round(u["avg_latency_ms"], 2)
+
+        # Status code breakdown
+        status_breakdown = list(
+            PageVisitLog.objects.values("status_code")
+            .annotate(count=Count("id"))
+            .order_by("status_code")
+        )
+
+        # Daily trend for last 14 days
+        daily_trend = []
+        for i in range(13, -1, -1):
+            day_date = (now - timedelta(days=i)).date()
+            day_start = timezone.make_aware(
+                datetime.combine(day_date, datetime.min.time())
+            )
+            day_end = timezone.make_aware(
+                datetime.combine(day_date, datetime.max.time())
+            )
+            day_qs = PageVisitLog.objects.filter(
+                created_at__gte=day_start, created_at__lte=day_end
+            )
+            daily_trend.append(
+                {
+                    "date": day_date.strftime("%Y-%m-%d"),
+                    "views": day_qs.count(),
+                    "unique_visitors": day_qs.values("ip_address").distinct().count(),
+                }
+            )
+
+        # Recent 15 visits
+        recent_visits = list(
+            PageVisitLog.objects.values(
+                "id",
+                "path",
+                "method",
+                "status_code",
+                "response_time_ms",
+                "ip_address",
+                "created_at",
+            ).order_by("-created_at")[:15]
+        )
+
+        return Response(
+            {
+                "user_metrics": {
+                    "total_registered_users": total_users,
+                    "total_email_subscribers": total_subscribers,
+                    "unique_visitors_today": unique_visitors_today,
+                    "unique_visitors_total": unique_visitors_total,
+                },
+                "traffic_metrics": {
+                    "total_views": total_page_views,
+                    "views_today": visits_today,
+                    "views_last_7_days": visits_7d,
+                    "views_last_30_days": visits_30d,
+                },
+                "top_urls": top_urls,
+                "status_breakdown": status_breakdown,
+                "daily_trend": daily_trend,
+                "recent_visits": recent_visits,
+            },
+            status=status.HTTP_200_OK,
+        )
+

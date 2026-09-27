@@ -35,6 +35,7 @@ ALLOWED_HOSTS = [
 
 
 INSTALLED_APPS = [
+    "django_prometheus",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -49,6 +50,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -58,6 +60,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "api.middleware.AnalyticsLoggingMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = "solidWealth.urls"
@@ -124,7 +128,7 @@ CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.getenv(
         "CORS_ALLOWED_ORIGINS",
-        "http://localhost:3000,http://solidwealthindia.com,https://solidwealthindia.com,http://www.solidwealthindia.com,https://www.solidwealthindia.com,https://solid-wealth.vercel.app",
+        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:8000,http://127.0.0.1:8000,http://solidwealthindia.com,https://solidwealthindia.com,http://www.solidwealthindia.com,https://www.solidwealthindia.com,https://solid-wealth.vercel.app",
     ).split(",")
     if origin.strip()
 ]
@@ -133,7 +137,7 @@ CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in os.getenv(
         "CSRF_TRUSTED_ORIGINS",
-        "http://solidwealthindia.com,https://solidwealthindia.com,http://www.solidwealthindia.com,https://www.solidwealthindia.com,https://solid-wealth.vercel.app,http://backend.solidwealthindia.com,https://backend.solidwealthindia.com",
+        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:8000,http://127.0.0.1:8000,http://solidwealthindia.com,https://solidwealthindia.com,http://www.solidwealthindia.com,https://www.solidwealthindia.com,https://solid-wealth.vercel.app,http://backend.solidwealthindia.com,https://backend.solidwealthindia.com",
     ).split(",")
     if origin.strip()
 ]

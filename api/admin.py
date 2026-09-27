@@ -276,3 +276,34 @@ class MutualFundPerformanceAdmin(admin.ModelAdmin):
     list_display = ("scheme_name", "category", "rating", "return_1yr", "return_3yr", "sharpe_ratio", "alpha")
     search_fields = ("scheme_name", "category", "rating")
     list_filter = ("category", "rating")
+
+
+from .models import PageVisitLog
+
+
+@admin.register(PageVisitLog)
+class PageVisitLogAdmin(admin.ModelAdmin):
+    list_display = (
+        "method",
+        "path",
+        "status_code",
+        "response_time_ms",
+        "user",
+        "ip_address",
+        "created_at",
+    )
+    list_filter = ("method", "status_code", "created_at")
+    search_fields = ("path", "ip_address", "user__username", "user_agent")
+    readonly_fields = (
+        "path",
+        "method",
+        "ip_address",
+        "user",
+        "user_agent",
+        "referer",
+        "status_code",
+        "response_time_ms",
+        "created_at",
+    )
+    date_hierarchy = "created_at"
+

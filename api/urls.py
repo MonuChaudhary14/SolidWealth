@@ -22,5 +22,6 @@ urlpatterns = [
         views.MutualFundPerformanceCategoriesAPIView.as_view(),
     ),
     path("mutual-fund-performance/", views.MutualFundPerformanceListAPIView.as_view()),
+    path("analytics/overview/", views.AnalyticsOverviewAPIView.as_view(), name="analytics-overview"),
 ]
 
