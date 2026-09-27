@@ -274,7 +274,7 @@ def build_daily_email_body(subscriber, nav_rows=None, report_date=None):
     lines.extend(
         [
             "",
-            "Visit SolidWealth: https://www.solidwealth.in/",
+            "Visit SolidWealth: https://solidwealthindia.com/",
             "",
             "Regards,",
             "Solid Wealth Team",
@@ -327,7 +327,7 @@ def build_daily_email_html(subscriber, nav_rows=None, report_date=None):
         f"<tbody>{row_html}</tbody>"
         "</table>"
         "<p style='margin:16px 0 0 0;'>"
-        "<a href='https://www.solidwealth.in/' style='color:#ff7a00;font-weight:700;text-decoration:none;'>Visit SolidWealth</a>"
+        "<a href='https://solidwealthindia.com/' style='color:#ff7a00;font-weight:700;text-decoration:none;'>Visit SolidWealth</a>"
         "</p>"
         "<p style='margin:18px 0 0 0;color:#555;'>Regards,<br><strong>Solid Wealth Team</strong></p>"
         "</div>"

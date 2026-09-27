@@ -28,7 +28,7 @@ ALLOWED_HOSTS = [
     h.strip()
     for h in os.getenv(
         "ALLOWED_HOSTS",
-        "solidwealthindia.com,www.solidwealthindia.com,127.0.0.1,localhost,0.0.0.0",
+        "backend.solidwealthindia.com,solidwealthindia.com,www.solidwealthindia.com,127.0.0.1,localhost,0.0.0.0",
     ).split(",")
     if h.strip()
 ]
@@ -133,7 +133,7 @@ CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in os.getenv(
         "CSRF_TRUSTED_ORIGINS",
-        "http://solidwealthindia.com,https://solidwealthindia.com,http://www.solidwealthindia.com,https://www.solidwealthindia.com,https://solid-wealth.vercel.app",
+        "http://solidwealthindia.com,https://solidwealthindia.com,http://www.solidwealthindia.com,https://www.solidwealthindia.com,https://solid-wealth.vercel.app,http://backend.solidwealthindia.com,https://backend.solidwealthindia.com",
     ).split(",")
     if origin.strip()
 ]

@@ -183,14 +183,14 @@ class DailyEmailCommandTests(TestCase):
         self.assertIn("Axis Mutual Fund", mail.outbox[0].body)
         self.assertIn("SBI Mutual Fund", mail.outbox[0].body)
         self.assertIn(
-            "Visit SolidWealth: https://www.solidwealth.in/", mail.outbox[0].body
+            "Visit SolidWealth: https://solidwealthindia.com/", mail.outbox[0].body
         )
         self.assertTrue(mail.outbox[0].alternatives)
         html_content = mail.outbox[0].alternatives[0][0]
         self.assertIn("Solid Wealth Daily Report", html_content)
         self.assertIn("linear-gradient(90deg,#ff7a00 0%,#ff9c40 100%)", html_content)
         self.assertIn("NAV Snapshot (Top 10 different companies)", html_content)
-        self.assertIn("href='https://www.solidwealth.in/'", html_content)
+        self.assertIn("href='https://solidwealthindia.com/'", html_content)
         self.assertIn(">Visit SolidWealth<", html_content)
         self.assertIn(
             "width:100%;background:#ffffff;border:1px solid #ffd8b0;overflow:hidden;",
