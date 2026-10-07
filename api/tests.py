@@ -391,6 +391,23 @@ class MutualFundPerformanceCategoriesApiTests(TestCase):
         self.assertEqual(data[1]["periods"], ["Greater than 1 Year"])
 
 
+class MutualFundPerformanceListApiTests(TestCase):
+    def test_performance_api_does_not_include_ber_percent(self):
+        MutualFundPerformance.objects.create(
+            category="Equity: ELSS",
+            scheme_name="Test ELSS Fund",
+            ber_percent=1.25,
+            ter_percent=1.75,
+        )
+
+        response = self.client.get("/api/mutual-fund-performance/")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 1)
+        self.assertNotIn("ber_percent", data[0])
+        self.assertEqual(data[0]["ter_percent"], "1.7500")
+
+
 class MarketSummaryApiTests(TestCase):
     def setUp(self):
         MarketSnapshot.objects.create(

@@ -152,7 +152,7 @@ class ChatbotRequestSerializer(serializers.Serializer):
 class MutualFundPerformanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = MutualFundPerformance
-        fields = "__all__"
+        exclude = ("ber_percent",)
 
 
 class MutualFundCategorySerializer(serializers.Serializer):
